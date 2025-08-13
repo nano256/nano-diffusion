@@ -11,7 +11,7 @@ class PatchEmbedding(nn.Module):
 
     Args:
         patch_size (int): Patch size parameter.
-        embedding_dim (int): Embedding dimension for the patches.
+        hidden_dim (int): Embedding dimension for the patches.
         in_channels (int): Number of channels of the input images
 
     Shape:
@@ -19,11 +19,12 @@ class PatchEmbedding(nn.Module):
         - Output: (batch_size, num_patches, patch_dim)
     """
 
-    def __init__(self, patch_size, embedding_dim, in_channels):
+    def __init__(self, patch_size, hidden_dim, in_channels):
         super().__init__()
         self.patch_size = patch_size
+        self.hidden_dim = hidden_dim
         self.in_channels = in_channels
-        self.lin_projection = nn.Linear(patch_size, in_channels * patch_size**2)
+        self.lin_projection = nn.Linear(in_channels * patch_size**2, hidden_dim)
 
     def patchify(self, x):
         """Convert 2D images into sequences of patches.
