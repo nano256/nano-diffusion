@@ -16,7 +16,7 @@ class PatchEmbedding(nn.Module):
 
     Shape:
         - Input: (batch_size, channels, height, width)
-        - Output: (batch_size, num_patches, patch_dim)
+        - Output: (batch_size, seq_len, hidden_dim)
     """
 
     def __init__(self, patch_size, hidden_dim, in_channels):
@@ -73,11 +73,12 @@ class AdaLNSingle(nn.Module):
     forward pass.
 
         Args:
-             (torch.tensor): Spacial input of shape (batch_size, channels, height, width).
+            hidden_dim (int): Embedding size.
+            num_layers (int): Number of DiT blocks.
 
         Shape:
-            - Input: (batch_size, channels, height, width)
-            - Output: (batch_size, num_patches, patch_dim)
+            - Input: (batch_size, hidden_dim)
+            - Output: (batch_size, 6 * hidden_dim)
     """
 
     def __init__(self, hidden_dim, num_layers):
