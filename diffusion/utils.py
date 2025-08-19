@@ -129,6 +129,16 @@ def create_mlp(layer_dims, activation=nn.SiLU, final_activation=None):
     return nn.Sequential(*layers)
 
 
+def create_dit_block_config():
+    """Config creator for DiTBlock"""
+    return {
+        "hidden_dim": 256,
+        "num_attn_heads": 8,
+        "attn_dim": 32,
+        "dropout": None,
+    }
+
+
 class DiTBlock(nn.Module):
     """Diffusion transformer (DiT) block
 
@@ -136,9 +146,9 @@ class DiTBlock(nn.Module):
     Denoises image tokens conditioned on timestep and user inputs.
 
         Args:
-            hidden_dim (int): Embedding size.
             layer_idx (int): Layer index
             adaln_single (torch.nn.Module): Globally shared AdaLN module
+            hidden_dim (int): Embedding size.
             attn_dim (int): Dimension of the the q, k embeddings used in the attention mechanism
             dropout (float): Dropout rate
 
@@ -148,7 +158,7 @@ class DiTBlock(nn.Module):
     """
 
     def __init__(
-        self, hidden_dim, layer_idx, adaln_single, num_attn_heads, attn_dim, dropout
+        self, layer_idx, adaln_single, hidden_dim, num_attn_heads, attn_dim, dropout
     ):
         super().__init__()
 
