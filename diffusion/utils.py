@@ -37,7 +37,7 @@ class PatchEmbedding(nn.Module):
 
         Shape:
             - Input: (batch_size, channels, height, width)
-            - Output: (batch_size, num_patches, patch_dim)
+            - Output: (batch_size, height // patch_size, width // patch_size, patch_dim)
         """
         # Check if the latent size is evenly divisable by the patch size.
         # No padding supported.
@@ -54,10 +54,11 @@ class PatchEmbedding(nn.Module):
             )
 
         # Extract patches: (B, C*patch_size*patch_size, num_patches)
-        x = F.unfold(x, kernel_size=self.patch_size, stride=self.patch_size)
+        patches = F.unfold(x, kernel_size=self.patch_size, stride=self.patch_size)
         # Transpose them so they are in the right shape for further processing
-        x = x.transpose(-1, -2)
-        return x
+        # (B,  num_patches, C*patch_size*patch_size)
+        patches = patches.transpose(-1, -2)
+        return patches
 
     def forward(self, x):
         x = self.patchify(x)
