@@ -25,6 +25,14 @@ class PatchEmbedding(nn.Module):
         self.hidden_dim = hidden_dim
         self.in_channels = in_channels
         self.lin_projection = nn.Linear(in_channels * patch_size**2, hidden_dim)
+        # Number of dimensions of the 2D sinusoidal encoding
+        self.pos_encoding_dim = hidden_dim // 4
+        # Each dimension of the sinuoidal encoding contains 4 elements, hence the repeating indices
+        pos_encoding_idx = torch.repeat_interleave(
+            torch.arange(self.pos_encoding_dim), 4
+        )
+        # The angular frequencies of the sine-cosine positional encoding
+        self.omega = 1 / 10 ** (4 * pos_encoding_idx / self.pos_encoding_dim)
 
     def patchify(self, x):
         """Convert 2D images into sequences of patches.
@@ -58,7 +66,15 @@ class PatchEmbedding(nn.Module):
         # Transpose them so they are in the right shape for further processing
         # (B,  num_patches, C*patch_size*patch_size)
         patches = patches.transpose(-1, -2)
+        # Bring them in a form so we can add the 2D positional encoding later
+        patches = x.reshape(
+            batch_size, self.patch_size // height, self.patch_size // width, -1
+        )
         return patches
+
+    def add_positional_encodings(self, x):
+        # y_dim traverses the patches along the height and x_dim along the width
+        batch_size, y_dim, x_dim = x.shape
 
     def forward(self, x):
         x = self.patchify(x)
