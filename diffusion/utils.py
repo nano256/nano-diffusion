@@ -25,14 +25,6 @@ class PatchEmbedding(nn.Module):
         self.hidden_dim = hidden_dim
         self.in_channels = in_channels
         self.lin_projection = nn.Linear(in_channels * patch_size**2, hidden_dim)
-        # Number of dimensions of the 2D sinusoidal encoding
-        self.pos_encoding_dim = hidden_dim // 4
-        # Each dimension of the sinuoidal encoding contains 4 elements, hence the repeating indices
-        pos_encoding_idx = torch.repeat_interleave(
-            torch.arange(self.pos_encoding_dim), 4
-        )
-        # The angular frequencies of the sine-cosine positional encoding
-        self.omega = 1 / 10 ** (4 * pos_encoding_idx / self.pos_encoding_dim)
 
     def patchify(self, x):
         """Convert 2D images into sequences of patches.
@@ -41,11 +33,13 @@ class PatchEmbedding(nn.Module):
         Returns patches in left-to-right, top-to-bottom order.
 
         Args:
-            x (torch.tensor): Spacial input of shape (batch_size, channels, height, width).
+            x (torch.tensor): Batched image latents.
 
         Shape:
             - Input: (batch_size, channels, height, width)
-            - Output: (batch_size, height // patch_size, width // patch_size, patch_dim)
+            - Output: (batch_size, channels * patch_size**2, patch_dim),
+                      (batch_size, channels * patch_size**2),
+                      (batch_size, channels * patch_size**2)
         """
         # Check if the latent size is evenly divisable by the patch size.
         # No padding supported.
@@ -66,19 +60,45 @@ class PatchEmbedding(nn.Module):
         # Transpose them so they are in the right shape for further processing
         # (B,  num_patches, C*patch_size*patch_size)
         patches = patches.transpose(-1, -2)
-        # Bring them in a form so we can add the 2D positional encoding later
-        patches = x.reshape(
-            batch_size, self.patch_size // height, self.patch_size // width, -1
-        )
-        return patches
+        # Generate the positional indices for the patches so we can
+        # later use them for the positional encoding
+        x_size = width // self.patch_size
+        y_size = height // self.patch_size
+        x_pos = torch.arange(x_size).repeat(y_size)
+        y_pos = torch.repeat_interleave(torch.arange(y_size), x_size)
+        return patches, x_pos, y_pos
 
-    def add_positional_encodings(self, x):
-        # y_dim traverses the patches along the height and x_dim along the width
-        batch_size, y_dim, x_dim = x.shape
+    def add_positional_encodings(self, x, x_pos, y_pos):
+        num_patches = torch.numel(x_pos)
+        # Number of dimensions of the 2D sinusoidal encoding
+        pos_encoding_dim = self.hidden_dim // 4
+        # Each dimension of the sinuoidal encoding contains 4 elements, but we use
+        # omega separately fro the sin and cos indices, hence only 2 repetitions.
+        pos_encoding_idx = torch.repeat_interleave(
+            torch.arange(self.pos_encoding_dim), 2
+        )
+        # The angular frequencies of the sine-cosine positional encoding
+        omega = 1 / 10 ** (4 * pos_encoding_idx / pos_encoding_dim)
+        pos = torch.stack((x_pos, y_pos)).reshape(2, -1)
+        # Repeat the positions so we got the indices for each dimension and transpose it
+        # so that the same indices are in the last dimension and match with omega.
+        pos = pos.repeat(pos_encoding_dim).t()
+        # This gives us [sin(p_x * omega_0), sin(p_y * omega_0), sin(p_x * omega_1) ...]
+        sin_encodings = torch.sin(pos * omega)
+        # This gives us [cos(p_x * omega_0), cos(p_y * omega_0), cos(p_x * omega_1) ...]
+        cos_encodings = torch.cos(pos * omega)
+        # Now we can interleave the sin and cos encodings
+        pos_encodings = (
+            torch.stack((sin_encodings, cos_encodings), dim=1)
+            .transpose(1, 2)
+            .reshape(-1, num_patches, 4 * pos_encoding_dim)
+        )
+        return x + pos_encodings
 
     def forward(self, x):
-        x = self.patchify(x)
+        x, x_pos, y_pos = self.patchify(x)
         x = self.lin_projection(x)
+        x = self.add_positional_encodings(x, x_pos, y_pos)
         return x
 
 
