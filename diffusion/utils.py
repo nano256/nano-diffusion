@@ -230,3 +230,41 @@ class DiTBlock(nn.Module):
         x2 = alpha_2 * x2
 
         return x2 + x_post_attn
+
+
+class Reshaper(nn.Module):
+    """Latent Reshaper Module
+
+    Reshapes a sequence of patch embeddinges and reshapes them into an image latent.
+
+        Args:
+            patch_size (int): Patch size parameter.
+            hidden_dim (int): Embedding dimension for the patches.
+            in_channels (int): Number of channels of the input images.
+            x_pos (torch.Tensor): X-axis positions of the patch embeddings.
+            y_pos (torch.Tensor): Y-axis positions of the patch embeddings.
+
+        Shape:
+            - Input: (batch_size, seq_len, hidden_dim)
+            - Output: (batch_size, channels, height, width)
+    """
+
+    def __init__(self, patch_size, hidden_dim, in_channels, x_pos, y_pos):
+        super().__init__()
+
+        self.patch_size = patch_size
+        self.hidden_dim = hidden_dim
+        self.width = (torch.max(x_pos) + 1) * patch_size
+        self.height = (torch.max(y_pos) + 1) * patch_size
+
+        self.lin_projection = nn.Linear(hidden_dim, in_channels * patch_size**2)
+
+    def forward(self, x):
+        x1 = F.layer_norm(x)
+        # Get the embeddings back to their original dimensions
+        x1 = self.lin_projection(x1)
+        return F.fold(
+            output_size=(self.height, self.width),
+            kernel_size=self.patch_size,
+            stride=self.patch_size,
+        )
