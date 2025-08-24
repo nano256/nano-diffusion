@@ -95,11 +95,14 @@ class PatchEmbedding(nn.Module):
         )
         return x + pos_encodings
 
-    def forward(self, x):
+    def forward(self, x, patch_pos=False):
         x, x_pos, y_pos = self.patchify(x)
         x = self.lin_projection(x)
         x = self.add_positional_encodings(x, x_pos, y_pos)
-        return x
+        if patch_pos is True:
+            return x, x_pos, y_pos
+        else:
+            return x
 
 
 class AdaLNSingle(nn.Module):
