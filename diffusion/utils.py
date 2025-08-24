@@ -105,6 +105,24 @@ class PatchEmbedding(nn.Module):
             return x
 
 
+class TimeEmbedding(nn.Module):
+
+    def __init__(self, num_timesteps, hidden_dim):
+        self.num_timesteps = num_timesteps
+        self.hidden_dim = hidden_dim
+
+        half_hidden_dim = hidden_dim // 2
+        freq_idx = torch.arange(half_hidden_dim)
+        self.omega = 1 / 10 ** (4 * freq_idx / half_hidden_dim)
+
+    def forward(self, timestep):
+        sin_encodings = torch.sin(timestep * self.omega)
+        cos_encodings = torch.cos(timestep * self.omega)
+        return torch.stack((sin_encodings, cos_encodings), dim=-1).reshape(
+            -1, self.hidden_dim
+        )
+
+
 class AdaLNSingle(nn.Module):
     """Parameter-efficient scaling and shifting conditioned on the current timestep
 
