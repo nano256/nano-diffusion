@@ -254,17 +254,17 @@ class Reshaper(nn.Module):
 
         self.patch_size = patch_size
         self.hidden_dim = hidden_dim
-        self.width = (torch.max(x_pos) + 1) * patch_size
-        self.height = (torch.max(y_pos) + 1) * patch_size
 
         self.lin_projection = nn.Linear(hidden_dim, in_channels * patch_size**2)
 
-    def forward(self, x):
+    def forward(self, x, x_pos, y_pos):
+        width = (torch.max(x_pos) + 1) * self.patch_size
+        height = (torch.max(y_pos) + 1) * self.patch_size
         x1 = F.layer_norm(x)
         # Get the embeddings back to their original dimensions
         x1 = self.lin_projection(x1)
         return F.fold(
-            output_size=(self.height, self.width),
+            output_size=(height, width),
             kernel_size=self.patch_size,
             stride=self.patch_size,
         )
