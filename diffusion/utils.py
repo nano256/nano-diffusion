@@ -231,7 +231,7 @@ class DiTBlock(nn.Module):
         )
         self.feedforward = create_mlp([hidden_dim, hidden_dim * 4, hidden_dim], nn.SiLU)
 
-    def forward(self, x, global_adaln_params):
+    def forward(self, x, global_adaln_params, c=None):
         # Get layer-specific scale and shift params
         beta_1, beta_2, gamma_1, gamma_2, alpha_1, alpha_2 = (
             self.adaln_single.get_layer_params(global_adaln_params, self.layer_idx)
@@ -241,7 +241,15 @@ class DiTBlock(nn.Module):
         x1 = F.layer_norm(x, x.shape[-1])
         x1 = gamma_1 * x1 + beta_1
 
-        attn_output = self.multi_head_attn(x1, x1, x1)
+        if c is not None:
+            # Add conditioning before the attention mechanism
+            x1_conditioned = torch.cat((x1, c), dim=-2)
+            attn_output, _ = self.multi_head_attn(
+                x1, x1_conditioned, x1_conditioned, need_weights=False
+            )
+        else:
+            attn_output, _ = self.multi_head_attn(x1, x1, x1, need_weights=False)
+
         attn_output = alpha_1 * attn_output
         x_post_attn = attn_output + x
 
