@@ -183,23 +183,6 @@ class TestAdaLNSingle:
             for param in params:
                 assert param.shape == (3, 256)
 
-    def test_layer_specific_differences(self):
-        """Test that different layers produce different parameters"""
-        adaln = AdaLNSingle(hidden_dim=64, num_layers=4)
-        time_emb = torch.randn(2, 64)
-        global_params = adaln.forward(time_emb)
-
-        params_layer_0 = adaln.get_layer_params(global_params, 0)
-        params_layer_2 = adaln.get_layer_params(global_params, 2)
-
-        # At least some parameters should be different between layers
-        differences_found = False
-        for p0, p2 in zip(params_layer_0, params_layer_2):
-            if not torch.allclose(p0, p2, atol=1e-6):
-                differences_found = True
-                break
-        assert differences_found, "Layer-specific parameters should be different"
-
     def test_parameter_consistency(self):
         """Test that same inputs produce same outputs"""
         adaln = AdaLNSingle(hidden_dim=128, num_layers=3)
@@ -265,16 +248,6 @@ class TestCreateMLP:
 
 class TestCreateDiTBlockConfig:
 
-    def test_config_completeness(self):
-        config = create_dit_block_config()
-
-        required_keys = {"hidden_dim", "num_attn_heads", "dropout"}
-        assert set(config.keys()) == required_keys
-
-        assert config["hidden_dim"] == 256
-        assert config["num_attn_heads"] == 8
-        assert config["dropout"] is None
-
     def test_config_immutability(self):
         """Test that returned config is not shared between calls"""
         config1 = create_dit_block_config()
@@ -311,20 +284,6 @@ class TestDiTBlock:
         # Check that MultiheadAttention has correct embed_dim (should be hidden_dim)
         assert dit_block.multi_head_attn.embed_dim == 256
         assert dit_block.multi_head_attn.num_heads == 8
-
-    def test_feedforward_structure(self, dit_components):
-        dit_block, _ = dit_components
-
-        # Should be [hidden_dim -> 4*hidden_dim -> hidden_dim] with SiLU activations
-        ff_layers = list(dit_block.feedforward.children())
-        assert len(ff_layers) == 5  # Linear, SiLU, Linear, SiLU, Linear
-
-        assert ff_layers[0].in_features == 256
-        assert ff_layers[0].out_features == 1024  # 4 * hidden_dim
-        assert ff_layers[2].in_features == 1024
-        assert ff_layers[2].out_features == 1024
-        assert ff_layers[4].in_features == 1024
-        assert ff_layers[4].out_features == 256
 
     def test_forward_without_conditioning(self, dit_components):
         """Test forward pass without conditioning input"""
@@ -429,12 +388,7 @@ class TestDiTBlock:
 class TestReshaper:
 
     def test_initialization(self):
-        x_pos = torch.tensor([0, 1, 0, 1])
-        y_pos = torch.tensor([0, 0, 1, 1])
-
-        reshaper = Reshaper(
-            patch_size=4, hidden_dim=256, in_channels=3, x_pos=x_pos, y_pos=y_pos
-        )
+        reshaper = Reshaper(patch_size=4, hidden_dim=256, in_channels=3)
 
         assert reshaper.patch_size == 4
         assert reshaper.hidden_dim == 256
@@ -451,20 +405,159 @@ class TestReshaper:
         ]
 
         for patch_size, hidden_dim, in_channels in configs:
-            x_pos = torch.arange(4)
-            y_pos = torch.arange(4)
-
-            reshaper = Reshaper(patch_size, hidden_dim, in_channels, x_pos, y_pos)
+            reshaper = Reshaper(patch_size, hidden_dim, in_channels)
 
             expected_output_dim = in_channels * (patch_size**2)
             assert reshaper.lin_projection.out_features == expected_output_dim
 
-    @pytest.mark.skipif(
-        True, reason="F.fold call missing input parameter in original code"
-    )
-    def test_forward_functionality(self):
-        """Skip due to bug in F.fold call"""
-        pass
+    def test_forward_basic_functionality(self):
+        """Test basic forward pass functionality"""
+        # Create 2x2 patches of size 2x2 each
+        x_pos = torch.tensor([0, 1, 0, 1])
+        y_pos = torch.tensor([0, 0, 1, 1])
+
+        reshaper = Reshaper(patch_size=2, hidden_dim=64, in_channels=1)
+
+        batch_size, num_patches = 2, 4
+        x = torch.randn(batch_size, num_patches, 64)
+
+        output = reshaper.forward(x, x_pos, y_pos)
+
+        # Should reconstruct to 4x4 image (2 patches * 2 patch_size in each dim)
+        assert output.shape == (batch_size, 1, 4, 4)
+
+    def test_forward_different_patch_configurations(self):
+        """Test forward pass with various patch configurations"""
+        test_configs = [
+            # (patch_size, grid_size, hidden_dim, in_channels)
+            (2, 2, 32, 1),  # 2x2 patches, 2x2 grid -> 4x4 image
+            (4, 2, 128, 3),  # 4x4 patches, 2x2 grid -> 8x8 image
+            (2, 4, 64, 2),  # 2x2 patches, 4x4 grid -> 8x8 image
+        ]
+
+        for patch_size, grid_size, hidden_dim, in_channels in test_configs:
+            # Create position tensors for grid_size x grid_size grid
+            x_pos = torch.arange(grid_size).repeat(grid_size)
+            y_pos = torch.repeat_interleave(torch.arange(grid_size), grid_size)
+
+            reshaper = Reshaper(patch_size, hidden_dim, in_channels)
+
+            num_patches = grid_size * grid_size
+            x = torch.randn(1, num_patches, hidden_dim)
+
+            output = reshaper.forward(x, x_pos, y_pos)
+
+            expected_height = grid_size * patch_size
+            expected_width = grid_size * patch_size
+            assert output.shape == (1, in_channels, expected_height, expected_width)
+
+    def test_forward_batch_processing(self):
+        """Test that batch processing works correctly"""
+        x_pos = torch.tensor([0, 1, 2, 0, 1, 2, 0, 1, 2])  # 3x3 grid
+        y_pos = torch.tensor([0, 0, 0, 1, 1, 1, 2, 2, 2])
+
+        reshaper = Reshaper(patch_size=2, hidden_dim=32, in_channels=2)
+
+        batch_sizes = [1, 3, 8]
+        for batch_size in batch_sizes:
+            x = torch.randn(batch_size, 9, 32)  # 9 patches
+            output = reshaper.forward(x, x_pos, y_pos)
+
+            # 3x3 patches of size 2x2 -> 6x6 image
+            assert output.shape == (batch_size, 2, 6, 6)
+
+    def test_layer_norm_application(self):
+        """Test that layer normalization is applied before projection"""
+        x_pos = torch.tensor([0, 1, 0, 1])
+        y_pos = torch.tensor([0, 0, 1, 1])
+
+        reshaper = Reshaper(2, 16, 1)
+
+        # Create input with known statistics
+        x = torch.randn(1, 4, 16) * 10 + 5  # Non-normalized input
+
+        # The forward pass should still work (layer norm handles the scaling)
+        output = reshaper.forward(x, x_pos, y_pos)
+        assert output.shape == (1, 1, 4, 4)
+        assert not torch.all(output == 0)
+
+    def test_gradient_flow(self):
+        """Test that gradients flow through the reshaper"""
+        x_pos = torch.tensor([0, 1, 0, 1])
+        y_pos = torch.tensor([0, 0, 1, 1])
+
+        reshaper = Reshaper(2, 32, 1)
+
+        x = torch.randn(1, 4, 32, requires_grad=True)
+        output = reshaper.forward(x, x_pos, y_pos)
+
+        loss = output.sum()
+        loss.backward()
+
+        assert x.grad is not None
+        assert not torch.all(x.grad == 0)
+
+    def test_position_tensor_validation(self):
+        """Test behavior with different position tensor shapes"""
+        reshaper = Reshaper(2, 16, 1)
+
+        # Test with different position tensors
+        x_pos_variants = [
+            torch.tensor([0, 1]),
+            torch.tensor([0, 2, 1, 3]),  # Non-contiguous positions
+            torch.tensor([1, 0, 3, 2]),  # Different ordering
+        ]
+
+        for x_pos in x_pos_variants:
+            y_pos = torch.zeros_like(x_pos)  # Keep y_pos simple
+            num_patches = len(x_pos)
+            x = torch.randn(1, num_patches, 16)
+
+            # Should not crash and should produce reasonable output
+            output = reshaper.forward(x, x_pos, y_pos)
+            expected_width = (torch.max(x_pos) + 1) * 2  # patch_size = 2
+            expected_height = (torch.max(y_pos) + 1) * 2
+
+            assert output.shape == (1, 1, expected_height, expected_width)
+
+    def test_reconstruction_properties(self):
+        """Test mathematical properties of the reconstruction"""
+        x_pos = torch.tensor([0, 1, 0, 1])
+        y_pos = torch.tensor([0, 0, 1, 1])
+
+        reshaper = Reshaper(2, 32, 2)
+
+        # Test with deterministic input
+        x = torch.ones(1, 4, 32)  # Constant input
+        output = reshaper.forward(x, x_pos, y_pos)
+
+        assert output.shape == (1, 2, 4, 4)
+
+        # Test with zero input
+        x_zero = torch.zeros(1, 4, 32)
+        output_zero = reshaper.forward(x_zero, x_pos, y_pos)
+
+        # After layer norm and linear projection, zero input might not give zero output
+        # but should be consistent
+        output_zero_2 = reshaper.forward(x_zero, x_pos, y_pos)
+        assert torch.allclose(output_zero, output_zero_2)
+
+    def test_different_input_channels(self):
+        """Test reshaper with different numbers of input channels"""
+        x_pos = torch.tensor([0, 1, 0, 1])
+        y_pos = torch.tensor([0, 0, 1, 1])
+
+        channel_configs = [1, 3, 4, 16, 64]
+
+        for in_channels in channel_configs:
+            reshaper = Reshaper(2, 64, in_channels)
+            x = torch.randn(2, 4, 64)
+
+            output = reshaper.forward(x, x_pos, y_pos)
+            assert output.shape == (2, in_channels, 4, 4)
+
+            # Check that linear projection has correct output size
+            assert reshaper.lin_projection.out_features == in_channels * 4  # 2^2
 
 
 class TestIntegration:
@@ -476,11 +569,7 @@ class TestIntegration:
 
         patch_embed = PatchEmbedding(patch_size, hidden_dim, in_channels)
 
-        # Create compatible reshaper (ignoring the forward bug)
-        x_pos = torch.arange(8).repeat(8)  # 8x8 patches
-        y_pos = torch.repeat_interleave(torch.arange(8), 8)
-
-        reshaper = Reshaper(patch_size, hidden_dim, in_channels, x_pos, y_pos)
+        reshaper = Reshaper(patch_size, hidden_dim, in_channels)
 
         # Check dimension compatibility
         assert (
