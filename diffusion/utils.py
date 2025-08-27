@@ -74,15 +74,13 @@ class PatchEmbedding(nn.Module):
         pos_encoding_dim = self.hidden_dim // 4
         # Each dimension of the sinuoidal encoding contains 4 elements, but we use
         # omega separately fro the sin and cos indices, hence only 2 repetitions.
-        pos_encoding_idx = torch.repeat_interleave(
-            torch.arange(self.pos_encoding_dim), 2
-        )
+        pos_encoding_idx = torch.repeat_interleave(torch.arange(pos_encoding_dim), 2)
         # The angular frequencies of the sine-cosine positional encoding
         omega = 1 / 10 ** (4 * pos_encoding_idx / pos_encoding_dim)
         pos = torch.stack((x_pos, y_pos)).reshape(2, -1)
         # Repeat the positions so we got the indices for each dimension and transpose it
         # so that the same indices are in the last dimension and match with omega.
-        pos = pos.repeat(pos_encoding_dim).t()
+        pos = pos.repeat((pos_encoding_dim, 1)).t()
         # This gives us [sin(p_x * omega_0), sin(p_y * omega_0), sin(p_x * omega_1) ...]
         sin_encodings = torch.sin(pos * omega)
         # This gives us [cos(p_x * omega_0), cos(p_y * omega_0), cos(p_x * omega_1) ...]
@@ -108,6 +106,7 @@ class PatchEmbedding(nn.Module):
 class TimeEmbedding(nn.Module):
 
     def __init__(self, num_timesteps, hidden_dim):
+        super().__init__()
         self.num_timesteps = num_timesteps
         self.hidden_dim = hidden_dim
 
@@ -115,9 +114,11 @@ class TimeEmbedding(nn.Module):
         freq_idx = torch.arange(half_hidden_dim)
         self.omega = 1 / 10 ** (4 * freq_idx / half_hidden_dim)
 
-    def forward(self, timestep):
-        sin_encodings = torch.sin(timestep * self.omega)
-        cos_encodings = torch.cos(timestep * self.omega)
+    def forward(self, timesteps):
+        # make sure that when several timesteps are given that they have a shape of (batch, 1)
+        batched_timesteps = timesteps.reshape(-1, 1)
+        sin_encodings = torch.sin(batched_timesteps * self.omega)
+        cos_encodings = torch.cos(batched_timesteps * self.omega)
         return torch.stack((sin_encodings, cos_encodings), dim=-1).reshape(
             -1, self.hidden_dim
         )
@@ -192,7 +193,6 @@ def create_dit_block_config():
     return {
         "hidden_dim": 256,
         "num_attn_heads": 8,
-        "attn_dim": 32,
         "dropout": None,
     }
 
@@ -207,7 +207,6 @@ class DiTBlock(nn.Module):
             layer_idx (int): Layer index
             adaln_single (torch.nn.Module): Globally shared AdaLN module
             hidden_dim (int): Embedding size.
-            attn_dim (int): Dimension of the the q, k embeddings used in the attention mechanism
             dropout (float): Dropout rate
 
         Shape:
@@ -215,9 +214,7 @@ class DiTBlock(nn.Module):
             - Output: (batch_size, seq_len, hidden_dim)
     """
 
-    def __init__(
-        self, layer_idx, adaln_single, hidden_dim, num_attn_heads, attn_dim, dropout
-    ):
+    def __init__(self, layer_idx, adaln_single, hidden_dim, num_attn_heads, dropout):
         super().__init__()
 
         self.hidden_dim = hidden_dim
@@ -227,9 +224,21 @@ class DiTBlock(nn.Module):
         self.num_attn_heads = num_attn_heads
 
         self.multi_head_attn = nn.MultiheadAttention(
-            attn_dim, num_attn_heads, dropout, batch_first=True
+            hidden_dim, num_attn_heads, dropout, batch_first=True
         )
         self.feedforward = create_mlp([hidden_dim, hidden_dim * 4, hidden_dim], nn.SiLU)
+
+    def scale_and_shift(self, x, scale_factor, bias=None):
+        # Normalize the embeddings before scaling and shifting
+        x1 = F.layer_norm(x, [self.hidden_dim])
+        # Transpose batch and seq since all embeddings in the same
+        # batch receive the same scale and shift
+        x1 = x1.transpose(0, 1)
+        x1 = scale_factor * x1
+        if bias is not None:
+            x1 = x1 + bias
+        # Transpose back so we get back to the original dimensions
+        return x1.transpose(0, 1)
 
     def forward(self, x, global_adaln_params, c=None):
         # Get layer-specific scale and shift params
@@ -237,9 +246,7 @@ class DiTBlock(nn.Module):
             self.adaln_single.get_layer_params(global_adaln_params, self.layer_idx)
         )
 
-        # Normalize the embeddings before scaling and shifting
-        x1 = F.layer_norm(x, x.shape[-1])
-        x1 = gamma_1 * x1 + beta_1
+        x1 = self.scale_and_shift(x, gamma_1, beta_1)
 
         if c is not None:
             # Add conditioning before the attention mechanism
@@ -250,13 +257,12 @@ class DiTBlock(nn.Module):
         else:
             attn_output, _ = self.multi_head_attn(x1, x1, x1, need_weights=False)
 
-        attn_output = alpha_1 * attn_output
+        x2 = self.scale_and_shift(attn_output, alpha_1)
         x_post_attn = attn_output + x
 
-        x2 = F.layer_norm(x_post_attn, x_post_attn.shape[-1])
-        x2 = gamma_2 * x2 + beta_2
+        x2 = self.scale_and_shift(x_post_attn, gamma_2, beta_2)
         x2 = self.feedforward(x2)
-        x2 = alpha_2 * x2
+        x2 = self.scale_and_shift(x2, alpha_2)
 
         return x2 + x_post_attn
 
@@ -278,7 +284,7 @@ class Reshaper(nn.Module):
             - Output: (batch_size, channels, height, width)
     """
 
-    def __init__(self, patch_size, hidden_dim, in_channels, x_pos, y_pos):
+    def __init__(self, patch_size, hidden_dim, in_channels):
         super().__init__()
 
         self.patch_size = patch_size
@@ -289,10 +295,13 @@ class Reshaper(nn.Module):
     def forward(self, x, x_pos, y_pos):
         width = (torch.max(x_pos) + 1) * self.patch_size
         height = (torch.max(y_pos) + 1) * self.patch_size
-        x1 = F.layer_norm(x)
+        x1 = F.layer_norm(x, [self.hidden_dim])
         # Get the embeddings back to their original dimensions
         x1 = self.lin_projection(x1)
+        # Transpose so that we have the dim order (batch, embedding, seq)
+        x1 = x1.transpose(-1, -2)
         return F.fold(
+            x1,
             output_size=(height, width),
             kernel_size=self.patch_size,
             stride=self.patch_size,
