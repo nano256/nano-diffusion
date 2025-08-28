@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 import torch
 from torch import nn
 import torch.nn.functional as F
@@ -306,3 +307,122 @@ class Reshaper(nn.Module):
             kernel_size=self.patch_size,
             stride=self.patch_size,
         )
+
+
+class AbstractNoiseScheduler(nn.Module, ABC):
+    """Abstract diffusion noise scheduler
+
+    Abstract class for noise schedules implementing the forward diffusion process.
+    The implementations are taken from http://arxiv.org/abs/2301.10972.
+
+        Args:
+            num_timesteps (torch.Tensor): Tensor of timesteps (int values)
+            clip_min (float): Minimal return value, for numeric stability purposes (defualt value: 1e-9)
+
+        Shape:
+            - Input: (batch_size, seq_len, hidden_dim), (batch_size, timesteps)
+            - Output: (batch_size, seq_len, hidden_dim), (batch_size, seq_len, hidden_dim)
+
+    """
+
+    def __init__(self, num_timesteps, clip_min=1e-9):
+        super().__init__()
+        self.num_timesteps = num_timesteps
+        self.clip_min = clip_min
+
+    @abstractmethod
+    def gamma_func(self, x, timesteps, noise=None, return_noise=True):
+        pass
+
+    def forward(self, x, timesteps, noise=None, return_noise=True):
+        # Make sure that the timesteps have a batch dimension
+        batched_timesteps = timesteps.reshape(-1, 1).float()
+        # Normalize the timesteps
+        batched_timesteps = batched_timesteps / self.num_timesteps
+        gamma = self.gamma_func(batched_timesteps)
+
+        if noise is None:
+            noise = torch.randn_like(x, device=x.device)
+
+        if return_noise is True:
+            return torch.sqrt(gamma) * x + torch.sqrt(1 - gamma) * noise, noise
+        else:
+            return torch.sqrt(gamma) * x + torch.sqrt(1 - gamma) * noise
+
+
+class LinearNoiseScheduler(AbstractNoiseScheduler):
+    """Linear diffusion noise scheduler
+
+    Generates a linear noise schedule for the forward diffusion process.
+
+        Args:
+            num_timesteps (torch.Tensor): Tensor of timesteps (int values)
+            clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def gamma_func(self, timesteps):
+        # A gamma function that simply is 1-t, timesteps in [0, 1] (normalized)
+        return torch.clip(1 - timesteps, self.clip_min, 1.0)
+
+
+class CosineNoiseScheduler(AbstractNoiseScheduler):
+    """Cosine diffusion noise scheduler
+
+    Generates a cosine noise schedule for the forward diffusion process.
+
+        Args:
+            num_timesteps (torch.Tensor): Tensor of timesteps (int values)
+            clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
+            start (float): Interpolation start (default: 0.2)
+            end (float): Interpolation end (default: 1.0)
+            tau (float): Scale factor (default: 2.0)
+    """
+
+    def __init__(self, start=0.2, end=1, tau=2, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.start = start
+        self.end = end
+        self.tau = tau
+
+    def gamma_func(self, timesteps):
+        # A gamma function based on cosine function, timesteps in [0, 1] (normalized)
+        v_start = torch.cos(self.start * torch.pi / 2) ** (2 * self.tau)
+        v_end = torch.cos(self.end * torch.pi / 2) ** (2 * self.tau)
+        output = torch.cos(
+            (timesteps * (self.end - self.start) + self.start) * torch.pi / 2
+        ) ** (2 * self.tau)
+        output = (v_end - output) / (v_end - v_start)
+        return torch.clip(output, self.clip_min, 1.0)
+
+
+class SigmoidNoiseScheduler(AbstractNoiseScheduler):
+    """Sigmoid diffusion noise scheduler
+
+    Generates a sigmoid noise schedule for the forward diffusion process.
+
+        Args:
+            num_timesteps (torch.Tensor): Tensor of timesteps (int values)
+            clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
+            start (float): Interpolation start (default: 0.0)
+            end (float): Interpolation end (default: 3.0)
+            tau (float): Scale factor (default: 0.7)
+    """
+
+    def __init__(self, start=0.0, end=3.0, tau=0.7, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.start = start
+        self.end = end
+        self.tau = tau
+
+    def gamma_func(self, timesteps):
+        # A gamma function based on sigmoid function, timesteps in [0, 1] (normalized)
+        v_start = F.sigmoid(self.start / self.tau)
+        v_end = F.sigmoid(self.end / self.tau)
+        output = F.sigmoid(
+            (timesteps * (self.end - self.start) + self.start) / self.tau
+        )
+        output = (v_end - output) / (v_end - v_start)
+        return torch.clip(output, self.clip_min, 1.0)
