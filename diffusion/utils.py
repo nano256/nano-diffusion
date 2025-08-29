@@ -426,3 +426,25 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
         )
         output = (v_end - output) / (v_end - v_start)
         return torch.clip(output, self.clip_min, 1.0)
+
+    class EulerSampler:
+
+        def __init__(self, model, noise_scheduler, num_timesteps, num_sampling_steps):
+            self.model = model
+            self.noise_scheduler = noise_scheduler
+            self.num_timesteps = num_timesteps
+            self.num_sampling_steps = num_sampling_steps
+
+        def step(self, x_t, noise_pred, gamma_t):
+            # Euler forward step to predict x_0
+            return (x_t - torch.sqrt(1 - gamma_t) * noise_pred) / torch.sqrt(gamma_t)
+
+        def sample(self, x_T, seed=None):
+            x_t = x_T
+            timesteps = (
+                torch.linspace(0, self.num_timesteps, self.num_sampling_steps)
+                .round()
+                .long()
+            )
+
+            for idx in range(len(timesteps) - 1):
