@@ -331,7 +331,7 @@ class AbstractNoiseScheduler(nn.Module, ABC):
         self.clip_min = clip_min
 
     @abstractmethod
-    def gamma_func(self, x, timesteps, noise=None, return_noise=True):
+    def gamma_func(self, timesteps):
         pass
 
     def forward(self, x, timesteps, noise=None, return_noise=True):
@@ -439,12 +439,28 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
             # Euler forward step to predict x_0
             return (x_t - torch.sqrt(1 - gamma_t) * noise_pred) / torch.sqrt(gamma_t)
 
-        def sample(self, x_T, seed=None):
+        def sample(self, x_T, context, seed=None):
+            # x_T is assumed to be full noise. It also determines the shape of the generated image.
             x_t = x_T
             timesteps = (
                 torch.linspace(0, self.num_timesteps, self.num_sampling_steps)
                 .round()
                 .long()
             )
+            gamma_t = self.noise_scheduler.gamma_func(timesteps)
 
             for idx in range(len(timesteps) - 1):
+                # Predict the noise
+                noise_pred = self.model(x_t, timesteps[idx], context)
+                # Predict x_0 from it
+                x_0_pred = self.step(x_t, noise_pred, gamma_t[idx])
+                # Add noise again equivalent of the noise step from which we will do the next prediction
+                x_t = (
+                    torch.sqrt(gamma_t[idx + 1]) * x_0_pred
+                    + torch.sqrt(1 - gamma_t[idx + 1]) * x_T
+                )
+
+            # Predict the last noise step...
+            noise_pred = self.model(x_t, timesteps[-1], context)
+            # ...and return the final prediction.
+            return self.step(x_t, noise_pred, gamma_t[-1])
