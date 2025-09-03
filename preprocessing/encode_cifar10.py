@@ -6,26 +6,31 @@ import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms.functional import pil_to_tensor
 from pathlib import Path
+import typer
+from tqdm import tqdm
 
 
 def encode_images(dataloader, vae):
     latent_list = []
     class_list = []
     # Convert the
-    for images, classes in dataloader:
+    for images, classes in tqdm(dataloader):
         # Encode
         with torch.no_grad():
             latents = (
                 vae.encode(images).latent_dist.sample() * vae.config.scaling_factor
             )
-        latent_list.append(torch.unbind(latents))
-        class_list.append(torch.unbind(classes))
+        latent_list.extend(torch.unbind(latents))
+        class_list.extend(torch.unbind(classes))
 
     return latent_list, class_list
 
 
 def encode_and_save_cifar10_latents(
-    vae_model_id, batch_size=128, device="cuda", dtype=torch.float16
+    vae_model_id="ostris/vae-kl-f8-d16",
+    batch_size: int = 128,
+    device="cuda",
+    dtype=torch.float16,
 ):
     """
     Encode images to latents and save as .pt files for torch dataset loading
@@ -46,20 +51,23 @@ def encode_and_save_cifar10_latents(
         [
             transforms.ToTensor(),
             transforms.Lambda(lambda x: 2.0 * x - 1.0),  # [0,1] -> [-1,1]
+            transforms.Lambda(lambda x: x.half()),
         ]
     )
-
+    print("Download train dataset...")
     trainset = CIFAR10(root=cifar10_dir, train=True, download=True, transform=transform)
     trainloader = DataLoader(
-        trainset, batch_size=batch_size, shuffle=True, num_workers=2
+        trainset, batch_size=batch_size, shuffle=False, num_workers=2
     )
-
+    print("Download test dataset...")
     testset = CIFAR10(root=cifar10_dir, train=False, download=True, transform=transform)
     testloader = DataLoader(
         testset, batch_size=batch_size, shuffle=False, num_workers=2
     )
 
+    print("Transform train dataset...")
     train_latents, train_labels = encode_images(trainloader, vae)
+    print("Transform test dataset...")
     test_latents, test_labels = encode_images(testloader, vae)
 
     data = {
@@ -74,4 +82,4 @@ def encode_and_save_cifar10_latents(
 
 
 if __name__ == "__main__":
-    encode_and_save_cifar10_latents(vae_model_id="ostris/vae-kl-f8-d16")
+    typer.run(encode_and_save_cifar10_latents)
