@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 from diffusers.models import AutoencoderKL
 from PIL import Image
 import torchvision.transforms as transforms
@@ -30,11 +30,21 @@ def encode_and_save_cifar10_latents(
     vae_model_id="ostris/vae-kl-f8-d16",
     batch_size: int = 128,
     device="cuda",
-    dtype=torch.float16,
+    dtype="float16",
+    debug: bool = False,
 ):
     """
     Encode images to latents and save as .pt files for torch dataset loading
     """
+    # typer can only pass primitives without additional
+    # config, hence we solve the dtype like this.
+    dtype = getattr(torch, dtype)
+    # CPUs are  much slower in float16 than in float32,
+    # therefore we convert the tensors at the end.
+    if device == "cpu":
+        final_dtype = dtype
+        dtype = torch.float32
+
     data_dir = Path(__file__).parent.parent / "data"
     data_dir.mkdir(exist_ok=True)
     output_dir = data_dir / "cifar10_latents"
@@ -50,17 +60,22 @@ def encode_and_save_cifar10_latents(
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
+            transforms.Lambda(lambda x: x.to(device=device, dtype=dtype)),
             transforms.Lambda(lambda x: 2.0 * x - 1.0),  # [0,1] -> [-1,1]
-            transforms.Lambda(lambda x: x.half()),
         ]
     )
     print("Download train dataset...")
     trainset = CIFAR10(root=cifar10_dir, train=True, download=True, transform=transform)
+    print("Download test dataset...")
+    testset = CIFAR10(root=cifar10_dir, train=False, download=True, transform=transform)
+
+    if debug is True:
+        trainset = Subset(trainset, torch.arange(10))
+        testset = Subset(testset, torch.arange(10))
+
     trainloader = DataLoader(
         trainset, batch_size=batch_size, shuffle=False, num_workers=2
     )
-    print("Download test dataset...")
-    testset = CIFAR10(root=cifar10_dir, train=False, download=True, transform=transform)
     testloader = DataLoader(
         testset, batch_size=batch_size, shuffle=False, num_workers=2
     )
@@ -69,6 +84,11 @@ def encode_and_save_cifar10_latents(
     train_latents, train_labels = encode_images(trainloader, vae)
     print("Transform test dataset...")
     test_latents, test_labels = encode_images(testloader, vae)
+
+    # Transform the tensors to the correct dtype before saving
+    if device == "cpu":
+        train_latents = list(map(lambda x: x.to(dtype=final_dtype), train_latents))
+        test_latents = list(map(lambda x: x.to(dtype=final_dtype), test_latents))
 
     data = {
         "train": {
