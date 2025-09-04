@@ -360,8 +360,8 @@ class LinearNoiseScheduler(AbstractNoiseScheduler):
             clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
     """
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, num_timesteps, clip_min=1e-9):
+        super().__init__(num_timesteps, clip_min)
 
     def gamma_func(self, timesteps):
         # A gamma function that simply is 1-t, timesteps in [0, 1] (normalized)
@@ -381,8 +381,8 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
             tau (float): Scale factor (default: 2.0)
     """
 
-    def __init__(self, start=0.2, end=1, tau=2, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, num_timesteps, start=0.2, end=1, tau=2, clip_min=1e-9):
+        super().__init__(num_timesteps, clip_min)
         self.start = start
         self.end = end
         self.tau = tau
@@ -411,8 +411,8 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
             tau (float): Scale factor (default: 0.7)
     """
 
-    def __init__(self, start=0.0, end=3.0, tau=0.7, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, num_timesteps, start=0.0, end=3.0, tau=0.7, clip_min=1e-9):
+        super().__init__(num_timesteps, clip_min)
         self.start = start
         self.end = end
         self.tau = tau
