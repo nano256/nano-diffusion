@@ -384,9 +384,9 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
 
     def __init__(self, num_timesteps, start=0.2, end=1, tau=2, clip_min=1e-9):
         super().__init__(num_timesteps, clip_min)
-        self.start = start
-        self.end = end
-        self.tau = tau
+        self.start = torch.tensor(start)
+        self.end = torch.tensor(end)
+        self.tau = torch.tensor(tau)
 
     def gamma_func(self, timesteps):
         # A gamma function based on cosine function, timesteps in [0, 1] (normalized)
@@ -414,9 +414,9 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
 
     def __init__(self, num_timesteps, start=0.0, end=3.0, tau=0.7, clip_min=1e-9):
         super().__init__(num_timesteps, clip_min)
-        self.start = start
-        self.end = end
-        self.tau = tau
+        self.start = torch.tensor(start)
+        self.end = torch.tensor(end)
+        self.tau = torch.tensor(tau)
 
     def gamma_func(self, timesteps):
         # A gamma function based on sigmoid function, timesteps in [0, 1] (normalized)
