@@ -335,8 +335,9 @@ class AbstractNoiseScheduler(nn.Module, ABC):
         pass
 
     def forward(self, x, timesteps, noise=None, return_noise=True):
-        # Make sure that the timesteps have a batch dimension
-        batched_timesteps = timesteps.reshape(-1, 1).float()
+        # Make sure that the timesteps are broadcasted correctly
+        # so the element-wise operation on the latents work.
+        batched_timesteps = timesteps.reshape(-1, 1, 1, 1).float()
         # Normalize the timesteps
         batched_timesteps = batched_timesteps / self.num_timesteps
         gamma = self.gamma_func(batched_timesteps)
