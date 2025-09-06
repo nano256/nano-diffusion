@@ -446,6 +446,7 @@ class EulerSampler:
         x_t = x_T
         timesteps = (
             torch.linspace(0, self.num_timesteps, self.num_sampling_steps)
+            .flip(0)
             .round()
             .long()
         )
