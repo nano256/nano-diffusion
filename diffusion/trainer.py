@@ -35,11 +35,7 @@ class NanoDiffusionTrainer:
         return self.loss_fn(pred_noise, noise)
 
     def train(
-        self,
-        epochs,
-        optimizer,
-        lr_scheduler,
-        train_dataloader,
+        self, epochs, optimizer, lr_scheduler, train_dataloader, val_dataloader=None
     ):
         for epoch in range(epochs):
             for batch in train_dataloader:
@@ -49,4 +45,14 @@ class NanoDiffusionTrainer:
                 loss.backward()
                 optimizer.step()
 
+            if (
+                val_dataloader is not None
+                and epoch % self.validation_interval == 0
+                and epoch != 0
+            ):
+                with torch.no_grad:
+                    val_losses = []
+                    for batch in val_dataloader:
+                        val_losses.append(self.compute_loss(batch))
+                    avg_val_loss = sum(val_losses) / len(val_losses)
             lr_scheduler.step()
