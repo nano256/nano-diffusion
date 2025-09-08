@@ -87,7 +87,7 @@ class NanoDiffusionTrainer:
                     avg_val_loss = sum(val_losses) / len(val_losses)
                     writer.add_scalar(
                         "loss_val",
-                        optimizer.param_groups[0]["lr"],
+                        avg_val_loss,
                         num_prev_batches + len(train_dataloader),
                     )
             lr_scheduler.step()
