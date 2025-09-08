@@ -1,5 +1,8 @@
 import torch
 import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
+from pathlib import Path
+from datetime import datetime
 
 
 class NanoDiffusionTrainer:
@@ -35,15 +38,42 @@ class NanoDiffusionTrainer:
         return self.loss_fn(pred_noise, noise)
 
     def train(
-        self, epochs, optimizer, lr_scheduler, train_dataloader, val_dataloader=None
+        self,
+        epochs,
+        optimizer,
+        lr_scheduler,
+        train_dataloader,
+        val_dataloader=None,
+        experiment_name=None,
+        log_dir="./runs",
     ):
+
+        log_dir = Path(log_dir)
+        if experiment_name is None:
+            experiment_name = (
+                f"nano-diffusion_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            )
+        writer = SummaryWriter(log_dir / experiment_name)
         for epoch in range(epochs):
-            for batch in train_dataloader:
+            num_prev_batches = epoch * len(train_dataloader)
+            for batch_idx, batch in enumerate(train_dataloader):
 
                 self.optimizer.zero_grad()
                 loss = self.compute_loss(batch)
                 loss.backward()
                 optimizer.step()
+
+                # Log everything
+                writer.add_scalar(
+                    "loss_train",
+                    loss.item(),
+                    num_prev_batches + batch_idx,
+                )
+                writer.add_scalar(
+                    "learning_rate",
+                    optimizer.param_groups[0]["lr"],
+                    num_prev_batches + batch_idx,
+                )
 
             if (
                 val_dataloader is not None
@@ -53,6 +83,12 @@ class NanoDiffusionTrainer:
                 with torch.no_grad:
                     val_losses = []
                     for batch in val_dataloader:
-                        val_losses.append(self.compute_loss(batch))
+                        val_losses.append(self.compute_loss(batch).item())
                     avg_val_loss = sum(val_losses) / len(val_losses)
+                    writer.add_scalar(
+                        "loss_val",
+                        optimizer.param_groups[0]["lr"],
+                        num_prev_batches + len(train_dataloader),
+                    )
             lr_scheduler.step()
+        writer.close()
