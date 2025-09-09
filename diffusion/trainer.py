@@ -16,13 +16,11 @@ class NanoDiffusionTrainer:
     def __init__(
         self,
         model,
-        optimizer,
         noise_scheduler,
         loss_fn="mse_loss",
         validation_interval=10,
     ):
         self.model = model
-        self.optimizer = optimizer
         self.noise_scheduler = noise_scheduler
         self.loss_fn = getattr(F, loss_fn)
         self.validation_interval = validation_interval
@@ -58,7 +56,7 @@ class NanoDiffusionTrainer:
             num_prev_batches = epoch * len(train_dataloader)
             for batch_idx, batch in enumerate(train_dataloader):
 
-                self.optimizer.zero_grad()
+                optimizer.zero_grad()
                 loss = self.compute_loss(batch)
                 loss.backward()
                 optimizer.step()
