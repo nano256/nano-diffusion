@@ -32,7 +32,7 @@ class NanoDiffusionTrainer:
         timesteps = torch.randint(
             0, self.noise_scheduler.num_timesteps, latents.shape[0]
         )
-        noise = torch.randn(latents.shape[1:])
+        noise = torch.randn_like(latents)
         noised_latents = self.noise_scheduler(latents, timesteps, noise)
         pred_noise = self.model(noised_latents, timesteps, context)
         return self.loss_fn(pred_noise, noise)
