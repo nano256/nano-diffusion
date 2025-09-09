@@ -80,7 +80,7 @@ class NanoDiffusionTrainer:
                 and epoch % self.validation_interval == 0
                 and epoch != 0
             ):
-                with torch.no_grad:
+                with torch.no_grad():
                     val_losses = []
                     for batch in val_dataloader:
                         val_losses.append(self.compute_loss(batch).item())
