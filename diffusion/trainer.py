@@ -28,10 +28,10 @@ class NanoDiffusionTrainer:
     def compute_loss(self, batch):
         latents, context = batch
         timesteps = torch.randint(
-            0, self.noise_scheduler.num_timesteps, latents.shape[0]
+            0, self.noise_scheduler.num_timesteps, (latents.shape[0],)
         )
         noise = torch.randn_like(latents)
-        noised_latents = self.noise_scheduler(latents, timesteps, noise)
+        noised_latents = self.noise_scheduler(latents, timesteps, noise, return_noise=False)
         pred_noise = self.model(noised_latents, timesteps, context)
         return self.loss_fn(pred_noise, noise)
 
