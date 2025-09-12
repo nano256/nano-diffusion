@@ -11,7 +11,9 @@ class NanoDiffusionModel(nn.Module):
         self.adaln_single = AdaLNSingle(**model_config)
         if model_config.num_context_classes:
             self.context_embedding = nn.Embedding(
-                model_config.num_context_classes, hidden_dim=model_config.hidden_dim
+                model_config.num_context_classes,
+                hidden_dim=model_config.hidden_dim,
+                device=model_config.device,
             )
         else:
             raise ValueError("`num_context_classes` is not defined.")
