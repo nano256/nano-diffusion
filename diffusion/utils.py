@@ -20,12 +20,15 @@ class PatchEmbedding(nn.Module):
         - Output: (batch_size, seq_len, hidden_dim)
     """
 
-    def __init__(self, patch_size, hidden_dim, in_channels):
+    def __init__(self, patch_size, hidden_dim, in_channels, device):
         super().__init__()
         self.patch_size = patch_size
         self.hidden_dim = hidden_dim
         self.in_channels = in_channels
-        self.lin_projection = nn.Linear(in_channels * patch_size**2, hidden_dim)
+        self.device = device
+        self.lin_projection = nn.Linear(
+            in_channels * patch_size**2, hidden_dim, device=device
+        )
 
     def patchify(self, x):
         """Convert 2D images into sequences of patches.
@@ -65,8 +68,10 @@ class PatchEmbedding(nn.Module):
         # later use them for the positional encoding
         x_size = width // self.patch_size
         y_size = height // self.patch_size
-        x_pos = torch.arange(x_size).repeat(y_size)
-        y_pos = torch.repeat_interleave(torch.arange(y_size), x_size)
+        x_pos = torch.arange(x_size, device=self.device).repeat(y_size)
+        y_pos = torch.repeat_interleave(
+            torch.arange(y_size, device=self.device), x_size
+        )
         return patches, x_pos, y_pos
 
     def add_positional_encodings(self, x, x_pos, y_pos):
@@ -75,7 +80,9 @@ class PatchEmbedding(nn.Module):
         pos_encoding_dim = self.hidden_dim // 4
         # Each dimension of the sinuoidal encoding contains 4 elements, but we use
         # omega separately fro the sin and cos indices, hence only 2 repetitions.
-        pos_encoding_idx = torch.repeat_interleave(torch.arange(pos_encoding_dim), 2)
+        pos_encoding_idx = torch.repeat_interleave(
+            torch.arange(pos_encoding_dim, device=self.device), 2
+        )
         # The angular frequencies of the sine-cosine positional encoding
         omega = 1 / 10 ** (4 * pos_encoding_idx / pos_encoding_dim)
         pos = torch.stack((x_pos, y_pos)).reshape(2, -1)
