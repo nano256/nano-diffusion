@@ -113,13 +113,14 @@ class PatchEmbedding(nn.Module):
 
 class TimeEmbedding(nn.Module):
 
-    def __init__(self, num_timesteps, hidden_dim):
+    def __init__(self, num_timesteps, hidden_dim, device):
         super().__init__()
         self.num_timesteps = num_timesteps
         self.hidden_dim = hidden_dim
+        self.device = device
 
         half_hidden_dim = hidden_dim // 2
-        freq_idx = torch.arange(half_hidden_dim)
+        freq_idx = torch.arange(half_hidden_dim, device=device)
         self.omega = 1 / 10 ** (4 * freq_idx / half_hidden_dim)
 
     def forward(self, timesteps):
