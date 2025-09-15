@@ -149,17 +149,20 @@ class AdaLNSingle(nn.Module):
             - Output: (batch_size, 6 * hidden_dim)
     """
 
-    def __init__(self, hidden_dim, num_layers):
+    def __init__(self, hidden_dim, num_layers, device):
         super().__init__()
         # TODO: Implement AdaLN zero initialization
+        self.device = device
         self.time_mlp = nn.Sequential(
             nn.Linear(
                 hidden_dim, 6 * hidden_dim
             ),  # Global [beta_1, beta_2, gamma_1, gamma_2, alpha_1, alpha_2]
             nn.SiLU(),
-        )
+        ).to(device=device)
         # Layer-specific learnable embeddings
-        self.layer_embeddings = nn.Parameter(torch.zeros(num_layers, 6 * hidden_dim))
+        self.layer_embeddings = nn.Parameter(
+            torch.zeros(num_layers, 6 * hidden_dim)
+        ).to(device=device)
 
     def forward(self, time_emb):
         """Single forward pass - compute global parameters"""
@@ -174,7 +177,7 @@ class AdaLNSingle(nn.Module):
         return torch.chunk(layer_params, 6, dim=-1)
 
 
-def create_mlp(layer_dims, activation=nn.SiLU, final_activation=None):
+def create_mlp(layer_dims, activation=nn.SiLU, final_activation=None, device=None):
     """
     Create MLP from list of layer dimensions
 
@@ -194,7 +197,7 @@ def create_mlp(layer_dims, activation=nn.SiLU, final_activation=None):
         elif final_activation is not None:
             layers.append(final_activation())
 
-    return nn.Sequential(*layers)
+    return nn.Sequential(*layers).to(device=device)
 
 
 def create_dit_block_config():
@@ -223,7 +226,9 @@ class DiTBlock(nn.Module):
             - Output: (batch_size, seq_len, hidden_dim)
     """
 
-    def __init__(self, layer_idx, adaln_single, hidden_dim, num_attn_heads, dropout):
+    def __init__(
+        self, layer_idx, adaln_single, hidden_dim, num_attn_heads, dropout, device
+    ):
         super().__init__()
 
         self.hidden_dim = hidden_dim
@@ -233,9 +238,15 @@ class DiTBlock(nn.Module):
         self.num_attn_heads = num_attn_heads
 
         self.multi_head_attn = nn.MultiheadAttention(
-            hidden_dim, num_attn_heads, dropout, batch_first=True
+            hidden_dim,
+            num_attn_heads,
+            dropout,
+            batch_first=True,
+            device=device,
         )
-        self.feedforward = create_mlp([hidden_dim, hidden_dim * 4, hidden_dim], nn.SiLU)
+        self.feedforward = create_mlp(
+            [hidden_dim, hidden_dim * 4, hidden_dim], nn.SiLU, device=device
+        )
 
     def scale_and_shift(self, x, scale_factor, bias=None):
         # Normalize the embeddings before scaling and shifting
@@ -293,13 +304,15 @@ class Reshaper(nn.Module):
             - Output: (batch_size, channels, height, width)
     """
 
-    def __init__(self, patch_size, hidden_dim, in_channels):
+    def __init__(self, patch_size, hidden_dim, in_channels, device):
         super().__init__()
 
         self.patch_size = patch_size
         self.hidden_dim = hidden_dim
 
-        self.lin_projection = nn.Linear(hidden_dim, in_channels * patch_size**2)
+        self.lin_projection = nn.Linear(
+            hidden_dim, in_channels * patch_size**2, device=device
+        )
 
     def forward(self, x, x_pos, y_pos):
         width = (torch.max(x_pos) + 1) * self.patch_size
@@ -345,7 +358,7 @@ class AbstractNoiseScheduler(nn.Module, ABC):
     def forward(self, x, timesteps, noise=None, return_noise=True):
         # Make sure that the timesteps are broadcasted correctly
         # so the element-wise operation on the latents work.
-        batched_timesteps = timesteps.reshape(-1, 1, 1, 1).float()
+        batched_timesteps = timesteps.reshape(-1, 1, 1, 1).float().to(x.device)
         # Normalize the timesteps
         batched_timesteps = batched_timesteps / self.num_timesteps
         gamma = self.gamma_func(batched_timesteps)
@@ -392,17 +405,21 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
 
     def __init__(self, num_timesteps, start=0.2, end=1, tau=2, clip_min=1e-9):
         super().__init__(num_timesteps, clip_min)
-        self.start = torch.tensor(start)
-        self.end = torch.tensor(end)
-        self.tau = torch.tensor(tau)
+        self.start = start
+        self.end = end
+        self.tau = tau
 
     def gamma_func(self, timesteps):
+        # Make sure the parameters are on the same device like the timesteps
+        start = torch.tensor(self.start, device=timesteps.device)
+        end = torch.tensor(self.end, device=timesteps.device)
+        tau = torch.tensor(self.tau, device=timesteps.device)
         # A gamma function based on cosine function, timesteps in [0, 1] (normalized)
-        v_start = torch.cos(self.start * torch.pi / 2) ** (2 * self.tau)
-        v_end = torch.cos(self.end * torch.pi / 2) ** (2 * self.tau)
-        output = torch.cos(
-            (timesteps * (self.end - self.start) + self.start) * torch.pi / 2
-        ) ** (2 * self.tau)
+        v_start = torch.cos(start * torch.pi / 2) ** (2 * tau)
+        v_end = torch.cos(end * torch.pi / 2) ** (2 * tau)
+        output = torch.cos((timesteps * (end - start) + start) * torch.pi / 2) ** (
+            2 * tau
+        )
         output = (v_end - output) / (v_end - v_start)
         return torch.clip(output, self.clip_min, 1.0)
 
@@ -422,17 +439,19 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
 
     def __init__(self, num_timesteps, start=0.0, end=3.0, tau=0.7, clip_min=1e-9):
         super().__init__(num_timesteps, clip_min)
-        self.start = torch.tensor(start)
-        self.end = torch.tensor(end)
-        self.tau = torch.tensor(tau)
+        self.start = start
+        self.end = end
+        self.tau = tau
 
     def gamma_func(self, timesteps):
+        # Make sure the parameters are on the same device like the timesteps
+        start = torch.tensor(self.start, device=timesteps.device)
+        end = torch.tensor(self.end, device=timesteps.device)
+        tau = torch.tensor(self.tau, device=timesteps.device)
         # A gamma function based on sigmoid function, timesteps in [0, 1] (normalized)
-        v_start = F.sigmoid(self.start / self.tau)
-        v_end = F.sigmoid(self.end / self.tau)
-        output = F.sigmoid(
-            (timesteps * (self.end - self.start) + self.start) / self.tau
-        )
+        v_start = F.sigmoid(start / tau)
+        v_end = F.sigmoid(end / tau)
+        output = F.sigmoid((timesteps * (end - start) + start) / tau)
         output = (v_end - output) / (v_end - v_start)
         return torch.clip(output, self.clip_min, 1.0)
 
@@ -457,6 +476,7 @@ class EulerSampler:
             .flip(0)
             .round()
             .long()
+            .to(x_T.device)
         )
         gamma_t = self.noise_scheduler.gamma_func(timesteps)
 
