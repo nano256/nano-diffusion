@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nano-diffusion"
+version = "0.1.0"
+description = "Educational implementation of a diffusion model transformer (DiT) architecture"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "Michel"}
+]
+keywords = ["diffusion", "transformer", "machine learning", "educational"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=1.9.0",
+    "torchvision>=0.10.0",
+    "diffusers>=0.20.0",
+    "Pillow>=8.0.0",
+    "typer>=0.7.0",
+    "tqdm>=4.60.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=6.0.0",
+    "pytest-cov>=3.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/username/nano-diffusion"
+Repository = "https://github.com/username/nano-diffusion"
+Issues = "https://github.com/username/nano-diffusion/issues"
+
+[project.scripts]
+encode-cifar10 = "preprocessing.encode_cifar10:main"
+
+[tool.setuptools.packages.find]
+include = ["diffusion*", "preprocessing*"]
+exclude = ["tests*", "train*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
