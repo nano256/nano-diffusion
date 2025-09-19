@@ -1,0 +1,24 @@
+name: nano-diffusion
+services:
+  workspace:
+    image: ghcr.io/${REPO_NAME}:0.1.1
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - /tmp/test:/workspace
+      # - ../data:/workspace/repo/data
+      # - ../models:/workspace/repo/models
+      # deploy:
+      #   resources:
+      #     reservations:
+      #       devices:
+      #         - driver: nvidia
+      #           count: all
+      #           capabilities: [ gpu ]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - REPO_NAME=${REPO_NAME}
+    stdin_open: true
+    tty: true
