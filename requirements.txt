@@ -1,0 +1,6 @@
+diffusers
+Pillow
+tqdm
+typer
+pytest
+-e .
