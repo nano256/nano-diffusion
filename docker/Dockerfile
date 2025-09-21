@@ -3,11 +3,32 @@ FROM nvcr.io/nvidia/pytorch:25.06-py3
 
 # Set the cache directory in /workspace because this is where Runpod mounts 
 # the persistent volume
-ENV TRANSFORMERS_CACHE=/workplace/transformers
-ENV DIFFUSERS_CACHE=/workplace/diffusers
+ENV TRANSFORMERS_CACHE=/workspace/transformers
+ENV DIFFUSERS_CACHE=/workspace/diffusers
 
-# Install git (if not already present)
-RUN apt-get update && apt-get install -y git
+# Install git and SSH server for Runpod shell access
+RUN apt-get update && apt-get install -y \
+    git \
+    openssh-server \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure SSH
+RUN mkdir /var/run/sshd \
+    && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
+    && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config \
+    && sed 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' -i /etc/pam.d/sshd
+
+# Create a user for better shell experience
+RUN useradd -m -s /bin/bash user \
+    && echo 'user:runpod' | chpasswd \
+    && usermod -aG sudo user \
+    && echo 'user ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
+
+# Set up shell environment
+RUN echo 'export PATH="/workspace/venv/bin:$PATH"' >> /home/user/.bashrc \
+    && echo 'cd /workspace/nano-diffusion' >> /home/user/.bashrc \
+    && echo 'source /workspace/venv/bin/activate 2>/dev/null || true' >> /home/user/.bashrc
 
 # Refresh shell so that PATH gets updated
 RUN bash
@@ -24,6 +45,5 @@ RUN chmod +x /setup.sh
 # Execute setup script at runtime because it does things in the persistent 
 # volume and relies on secrets provided through the env
 ENTRYPOINT ["/setup.sh"]
-# If no custom command is given, keep the container running so that we later 
-# can connect via bash and execute the desired scripts manually.
-CMD ["/bin/bash", "-c", "while true; do sleep 30; done"]
+# Start SSH service and keep container running for shell access
+CMD ["/bin/bash", "-c", "service ssh start && while true; do sleep 30; done"]
