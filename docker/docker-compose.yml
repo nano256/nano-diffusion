@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - /tmp/test:/workspace
+      - workspace:/workspace
       # - ../data:/workspace/repo/data
       # - ../models:/workspace/repo/models
       # deploy:
@@ -22,3 +22,5 @@ services:
       - REPO_NAME=${REPO_NAME}
     stdin_open: true
     tty: true
+volumes:
+  workspace:
