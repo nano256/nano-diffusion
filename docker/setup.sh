@@ -1,6 +1,10 @@
 #!/bin/bash
 # setup.sh - Download the repo and install dependencies
 
+# Without this, echo commands will not be shown in the Docker logs
+export PYTHONUNBUFFERED=1
+exec > >(stdbuf -oL cat) 2>&1
+
 source ./config.sh
 
 # Function to search upwards for a .env file
@@ -96,6 +100,6 @@ download_or_pull_repo "$REPO_NAME" "$REPO_PATH"
 
 # Go back to root dir to ensure consistency for running CMD
 cd "/"
-
+echo "=== SETUP COMPLETE ==="
 # Forward command passed from CMD or `docker run`
 exec "$@"
