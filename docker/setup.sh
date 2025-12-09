@@ -88,6 +88,7 @@ else
   PASSWORD_HASH=$(python3 -c "from jupyter_server.auth import passwd; print(passwd('$JUPYTER_PASSWORD'))")
   mkdir -p ~/.jupyter
   echo "{\"ServerApp\": {\"password\": \"$PASSWORD_HASH\"}}" > ~/.jupyter/jupyter_server_config.json
+  jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root &
 fi
 
 # Clone or pull nano diffusion repo

@@ -5,6 +5,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    ports:
+      - "8888:8888" 
+      - "2222:22"
     volumes:
       - workspace:/workspace
       # - ../data:/workspace/repo/data
