@@ -17,28 +17,41 @@ find_dotenv_upwards() {
 }
 
 download_or_pull_repo() {
-  local repo_name=$1
-  local repo_path=$2
-
-  
-  if [ -d "$repo_path/.git" ]; then
-    echo "Repo exists at $repo_path. Pulling latest changes..."
-    git -C "$repo_path" pull
-  else
-    echo "Cloning repo into $repo_path..."
-    # Clone the repository using the token. Set both either as an env variable or in the .env
-    git clone https://${GITHUB_TOKEN}@github.com/${repo_name}.git ${repo_path} || { echo "Git clone failed"; return 1; }
-  fi
-
-  # Change to the repo directory
-  cd "$repo_path" || { echo "Failed to cd to $repo_path"; return 1; }
-
-  # Install Python requirements
-   if [ -f "requirements.txt" ]; then
-    pip install -r requirements.txt || { echo "pip install failed for $repo_name"; return 1; }
-  else
-    echo "No requirements.txt found in $repo_path"
-  fi
+    local repo_name=$1
+    local repo_path=$2
+    local needs_install=false
+    
+    if [ -d "$repo_path/.git" ]; then
+        echo "Repo exists at $repo_path. Pulling latest changes..."
+        cd "$repo_path" || { echo "Failed to cd to $repo_path"; return 1; }
+        
+        # Check if pull actually updates anything
+        git fetch
+        LOCAL=$(git rev-parse @)
+        REMOTE=$(git rev-parse @{u})
+        
+        if [ "$LOCAL" != "$REMOTE" ]; then
+            git pull
+            needs_install=true
+        else
+            echo "Repository already up to date"
+        fi
+    else
+        echo "Cloning repo into $repo_path..."
+        git clone https://${GITHUB_TOKEN}@github.com/${repo_name}.git ${repo_path} || { echo "Git clone failed"; return 1; }
+        cd "$repo_path" || { echo "Failed to cd to $repo_path"; return 1; }
+        needs_install=true
+    fi
+    
+    # Only install if repo changed or requirements weren't installed yet
+    if [ -f "requirements.txt" ] && [ "$needs_install" = true ]; then
+        echo "Installing requirements..."
+        pip install -r requirements.txt || { echo "pip install failed for $repo_name"; return 1; }
+    elif [ -f "requirements.txt" ]; then
+        echo "Requirements already installed, skipping..."
+    else
+        echo "No requirements.txt found in $repo_path"
+    fi
 }
 
 # Try to find and source the .env
@@ -58,6 +71,8 @@ if [ -d "$VENV_PATH" ]; then
   echo "Virtual environment already exists at $VENV_PATH"
 else
   echo "Creating virtual environment at $VENV_PATH"
+  # The system-side-packages flag makes sue that the venv is using the
+  # torch and NVIDIA installs of the base image
   python3 -m venv --system-site-packages "$VENV_PATH"
 fi
 
