@@ -23,6 +23,7 @@ services:
       - NVIDIA_VISIBLE_DEVICES=all
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - REPO_NAME=${REPO_NAME}
+      - JUPYTER_PASSWORD=${JUPYTER_PASSWORD}
     stdin_open: true
     tty: true
 volumes:
