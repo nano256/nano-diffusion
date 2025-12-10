@@ -1,10 +1,11 @@
-import torch
-from torch.utils.data import DataLoader, Subset
-from diffusers.models import AutoencoderKL
-import torchvision.transforms as transforms
-from torchvision.datasets import CIFAR10
 from pathlib import Path
+
+import torch
+import torchvision.transforms as transforms
 import typer
+from diffusers.models import AutoencoderKL
+from torch.utils.data import DataLoader, Subset
+from torchvision.datasets import CIFAR10
 from tqdm import tqdm
 
 
@@ -23,7 +24,8 @@ def encode_images(dataloader, vae):
 
     return latent_list, class_list
 
-# Due to problems with the DataLoaders on Windows and MacOS, we can't use 
+
+# Due to problems with the DataLoaders on Windows and MacOS, we can't use
 # lambda functions in the dataset transform, hence the custom classes.
 # https://stackoverflow.com/questions/70608810/pytorch-cant-pickle-lambda
 class TensorDeviceConvertor:
@@ -34,11 +36,13 @@ class TensorDeviceConvertor:
     def __call__(self, tensor):
         return tensor.to(device=self.device, dtype=self.dtype)
 
-# The CIFAR images already are already normalized to [0,1], so we only do 
+
+# The CIFAR images already are already normalized to [0,1], so we only do
 # the transform to [-1,1].
 class TensorNormalizer:
     def __call__(self, tensor):
         return 2.0 * tensor - 1.0  # [0,1] -> [-1,1]
+
 
 def encode_and_save_cifar10_latents(
     vae_model_id="ostris/vae-kl-f8-d16",
@@ -85,7 +89,7 @@ def encode_and_save_cifar10_latents(
         trainset = Subset(trainset, torch.arange(10))
         testset = Subset(testset, torch.arange(10))
         output_dir_name = output_dir_name + "_debug"
-    
+
     output_dir = data_dir / output_dir_name
     output_dir.mkdir(exist_ok=True)
 
