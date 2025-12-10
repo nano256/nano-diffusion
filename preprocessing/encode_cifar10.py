@@ -61,9 +61,8 @@ def encode_and_save_cifar10_latents(
 
     data_dir = Path(__file__).parent.parent / "data"
     data_dir.mkdir(exist_ok=True)
-    output_dir = data_dir / "cifar10_latents"
-    output_dir.mkdir(exist_ok=True)
     cifar10_dir = data_dir / "cifar10"
+    output_dir_name = "cifar10_latents"
 
     # Load VAE
     vae = (
@@ -85,6 +84,10 @@ def encode_and_save_cifar10_latents(
     if debug is True:
         trainset = Subset(trainset, torch.arange(10))
         testset = Subset(testset, torch.arange(10))
+        output_dir_name = output_dir_name + "_debug"
+    
+    output_dir = data_dir / output_dir_name
+    output_dir.mkdir(exist_ok=True)
 
     trainloader = DataLoader(
         trainset, batch_size=batch_size, shuffle=False, num_workers=2
