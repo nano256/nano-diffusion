@@ -1,6 +1,10 @@
 # Downloaded and preprocessed data
 data/
 
+# Experiment artifcats
+runs/
+checkpoints/
+
 # IDE and AI helper settings
 .vscode
 CLAUDE.md
