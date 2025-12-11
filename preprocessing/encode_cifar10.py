@@ -48,7 +48,7 @@ def encode_and_save_cifar10_latents(
     vae_model_id="ostris/vae-kl-f8-d16",
     batch_size: int = 128,
     device="cuda",
-    dtype="float16",
+    dtype="float32",
     debug: bool = False,
 ):
     """
