@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
+
 import torch
-from torch import nn
 import torch.nn.functional as F
+from torch import nn
 
 
 class PatchEmbedding(nn.Module):
@@ -20,7 +21,7 @@ class PatchEmbedding(nn.Module):
         - Output: (batch_size, seq_len, hidden_dim)
     """
 
-    def __init__(self, patch_size, hidden_dim, in_channels, device):
+    def __init__(self, patch_size, hidden_dim, in_channels, device, **kwargs):
         super().__init__()
         self.patch_size = patch_size
         self.hidden_dim = hidden_dim
@@ -112,8 +113,7 @@ class PatchEmbedding(nn.Module):
 
 
 class TimeEmbedding(nn.Module):
-
-    def __init__(self, num_timesteps, hidden_dim, device):
+    def __init__(self, num_timesteps, hidden_dim, device, **kwargs):
         super().__init__()
         self.num_timesteps = num_timesteps
         self.hidden_dim = hidden_dim
@@ -149,7 +149,7 @@ class AdaLNSingle(nn.Module):
             - Output: (batch_size, 6 * hidden_dim)
     """
 
-    def __init__(self, hidden_dim, num_layers, device):
+    def __init__(self, hidden_dim, num_dit_blocks, device, **kwargs):
         super().__init__()
         # TODO: Implement AdaLN zero initialization
         self.device = device
@@ -161,7 +161,7 @@ class AdaLNSingle(nn.Module):
         ).to(device=device)
         # Layer-specific learnable embeddings
         self.layer_embeddings = nn.Parameter(
-            torch.zeros(num_layers, 6 * hidden_dim)
+            torch.zeros(num_dit_blocks, 6 * hidden_dim)
         ).to(device=device)
 
     def forward(self, time_emb):
@@ -227,7 +227,14 @@ class DiTBlock(nn.Module):
     """
 
     def __init__(
-        self, layer_idx, adaln_single, hidden_dim, num_attn_heads, dropout, device
+        self,
+        layer_idx,
+        adaln_single,
+        hidden_dim,
+        num_attn_heads,
+        dropout,
+        device,
+        **kwargs,
     ):
         super().__init__()
 
@@ -304,7 +311,7 @@ class Reshaper(nn.Module):
             - Output: (batch_size, channels, height, width)
     """
 
-    def __init__(self, patch_size, hidden_dim, in_channels, device):
+    def __init__(self, patch_size, hidden_dim, in_channels, device, **kwargs):
         super().__init__()
 
         self.patch_size = patch_size
@@ -382,7 +389,7 @@ class LinearNoiseScheduler(AbstractNoiseScheduler):
             clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
     """
 
-    def __init__(self, num_timesteps, clip_min=1e-9):
+    def __init__(self, num_timesteps, clip_min=1e-9, **kwargs):
         super().__init__(num_timesteps, clip_min)
 
     def gamma_func(self, timesteps):
@@ -403,7 +410,7 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
             tau (float): Scale factor (default: 2.0)
     """
 
-    def __init__(self, num_timesteps, start=0.2, end=1, tau=2, clip_min=1e-9):
+    def __init__(self, num_timesteps, start=0.2, end=1, tau=2, clip_min=1e-9, **kwargs):
         super().__init__(num_timesteps, clip_min)
         self.start = start
         self.end = end
@@ -437,7 +444,9 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
             tau (float): Scale factor (default: 0.7)
     """
 
-    def __init__(self, num_timesteps, start=0.0, end=3.0, tau=0.7, clip_min=1e-9):
+    def __init__(
+        self, num_timesteps, start=0.0, end=3.0, tau=0.7, clip_min=1e-9, **kwargs
+    ):
         super().__init__(num_timesteps, clip_min)
         self.start = start
         self.end = end
@@ -457,8 +466,9 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
 
 
 class EulerSampler:
-
-    def __init__(self, model, noise_scheduler, num_timesteps, num_sampling_steps):
+    def __init__(
+        self, model, noise_scheduler, num_timesteps, num_sampling_steps, **kwargs
+    ):
         self.model = model
         self.noise_scheduler = noise_scheduler
         self.num_timesteps = num_timesteps
