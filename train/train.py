@@ -1,29 +1,22 @@
-#!/usr/bin/env python3
+import sys
+from pathlib import Path
 
 import torch
-import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from pathlib import Path
-import sys
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-from diffusion.model import NanoDiffusionModel
+import typer
+
+from diffusion.model import ModelConfig, NanoDiffusionModel
 from diffusion.trainer import NanoDiffusionTrainer
 from diffusion.utils import CosineNoiseScheduler
 
 
-class ModelConfig:
-    def __init__(self):
-        self.patch_size = 2
-        self.hidden_dim = 384
-        self.num_attention_heads = 6
-        self.num_dit_blocks = 12
-        self.num_context_classes = 10
-        self.mlp_ratio = 4.0
-
-
-def load_cifar10_latents(data_path="./data/cifar10_latents/cifar10_latents.pt"):
+def load_cifar10_latents(
+    data_path="./data/cifar10_latents_debug/cifar10_latents.pt",
+    # data_path="./data/cifar10_latents/cifar10_latents.pt"
+):
     data_path = Path(data_path)
     if not data_path.exists():
         raise FileNotFoundError(
@@ -53,7 +46,7 @@ def create_dataloaders(
     return train_loader, val_loader
 
 
-def main():
+def train():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
@@ -107,4 +100,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    typer.run(train)
