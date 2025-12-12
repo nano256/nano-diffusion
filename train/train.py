@@ -46,9 +46,20 @@ def create_dataloaders(
     return train_loader, val_loader
 
 
-def train():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def train(device: str = None):
+    if device is None:
+        if torch.cuda.is_available():
+            device = "cuda"
+        elif torch.backends.mps.is_available():
+            device = "mps"
+        else:
+            device = "cpu"
+
     print(f"Using device: {device}")
+    device = torch.device(device)
+
+    # Without this dataloaders with several workers throw an error.
+    torch.multiprocessing.set_start_method("spawn")
 
     try:
         train_latents, train_labels, test_latents, test_labels = load_cifar10_latents()
