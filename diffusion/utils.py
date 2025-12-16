@@ -158,7 +158,7 @@ class AdaLNSingle(nn.Module):
         ).to(device=device)
         # Layer-specific learnable embeddings
         self.layer_embeddings = nn.Parameter(
-            torch.zeros(num_dit_blocks, 6 * hidden_dim), device=device
+            torch.zeros(num_dit_blocks, 6 * hidden_dim, device=device)
         )
 
     def forward(self, time_emb):

@@ -81,7 +81,7 @@ def train(device: str = None):
         train_latents, train_labels, test_latents, test_labels, batch_size=32
     )
 
-    config = ModelConfig()
+    config = ModelConfig(device=device)
     model = NanoDiffusionModel(config).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
@@ -99,7 +99,7 @@ def train(device: str = None):
 
     print("Starting training...")
     trainer.train(
-        epochs=100,
+        epochs=2,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
         train_dataloader=train_loader,
