@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import torch
@@ -46,7 +47,7 @@ def create_dataloaders(
     return train_loader, val_loader
 
 
-def train(device: str = None):
+def train(experiment_name=None, device: str = None):
     if device is None:
         if torch.cuda.is_available():
             device = "cuda"
@@ -54,6 +55,9 @@ def train(device: str = None):
             device = "mps"
         else:
             device = "cpu"
+
+    if experiment_name is None:
+        experiment_name = datetime.now().strftime("%Y%m%d_%H%M%S") + "_cifar10"
 
     print(f"Using device: {device}")
     device = torch.device(device)
