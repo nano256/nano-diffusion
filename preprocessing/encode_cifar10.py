@@ -54,6 +54,8 @@ def encode_and_save_cifar10_latents(
     """
     Encode images to latents and save as .pt files for torch dataset loading
     """
+    # Without this dataloaders with several workers throw an error.
+    torch.multiprocessing.set_start_method("spawn")
     # typer can only pass primitives without additional
     # config, hence we solve the dtype like this.
     dtype = getattr(torch, dtype)
