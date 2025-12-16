@@ -131,9 +131,10 @@ class NanoDiffusionTrainer:
                 optimizer.step()
 
                 # Log everything
+                # Detach loss tensor first to suppress scalar conversion warning
                 writer.add_scalar(
                     "loss_train",
-                    loss.item(),
+                    loss.detach().item(),
                     num_prev_batches + batch_idx,
                 )
                 writer.add_scalar(
