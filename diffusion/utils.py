@@ -26,7 +26,6 @@ class PatchEmbedding(nn.Module):
         self.patch_size = patch_size
         self.hidden_dim = hidden_dim
         self.in_channels = in_channels
-        self.device = device
         self.lin_projection = nn.Linear(
             in_channels * patch_size**2, hidden_dim, device=device
         )
@@ -49,6 +48,7 @@ class PatchEmbedding(nn.Module):
         # Check if the latent size is evenly divisable by the patch size.
         # No padding supported.
         batch_size, channels, height, width = x.shape
+        device = x.device
 
         if height % self.patch_size != 0:
             raise ValueError(
@@ -69,20 +69,19 @@ class PatchEmbedding(nn.Module):
         # later use them for the positional encoding
         x_size = width // self.patch_size
         y_size = height // self.patch_size
-        x_pos = torch.arange(x_size, device=self.device).repeat(y_size)
-        y_pos = torch.repeat_interleave(
-            torch.arange(y_size, device=self.device), x_size
-        )
+        x_pos = torch.arange(x_size, device=device).repeat(y_size)
+        y_pos = torch.repeat_interleave(torch.arange(y_size, device=device), x_size)
         return patches, x_pos, y_pos
 
     def add_positional_encodings(self, x, x_pos, y_pos):
+        device = x.device
         num_patches = torch.numel(x_pos)
         # Number of dimensions of the 2D sinusoidal encoding
         pos_encoding_dim = self.hidden_dim // 4
         # Each dimension of the sinuoidal encoding contains 4 elements, but we use
         # omega separately fro the sin and cos indices, hence only 2 repetitions.
         pos_encoding_idx = torch.repeat_interleave(
-            torch.arange(pos_encoding_dim, device=self.device), 2
+            torch.arange(pos_encoding_dim, device=device), 2
         )
         # The angular frequencies of the sine-cosine positional encoding
         omega = 1 / 10 ** (4 * pos_encoding_idx / pos_encoding_dim)
@@ -117,7 +116,6 @@ class TimeEmbedding(nn.Module):
         super().__init__()
         self.num_timesteps = num_timesteps
         self.hidden_dim = hidden_dim
-        self.device = device
 
         half_hidden_dim = hidden_dim // 2
         freq_idx = torch.arange(half_hidden_dim, device=device)
@@ -152,7 +150,6 @@ class AdaLNSingle(nn.Module):
     def __init__(self, hidden_dim, num_dit_blocks, device, **kwargs):
         super().__init__()
         # TODO: Implement AdaLN zero initialization
-        self.device = device
         self.time_mlp = nn.Sequential(
             nn.Linear(
                 hidden_dim, 6 * hidden_dim
@@ -161,8 +158,8 @@ class AdaLNSingle(nn.Module):
         ).to(device=device)
         # Layer-specific learnable embeddings
         self.layer_embeddings = nn.Parameter(
-            torch.zeros(num_dit_blocks, 6 * hidden_dim)
-        ).to(device=device)
+            torch.zeros(num_dit_blocks, 6 * hidden_dim), device=device
+        )
 
     def forward(self, time_emb):
         """Single forward pass - compute global parameters"""
@@ -177,7 +174,7 @@ class AdaLNSingle(nn.Module):
         return torch.chunk(layer_params, 6, dim=-1)
 
 
-def create_mlp(layer_dims, activation=nn.SiLU, final_activation=None, device=None):
+def create_mlp(layer_dims, activation=nn.SiLU, final_activation=None, device="cpu"):
     """
     Create MLP from list of layer dimensions
 
@@ -363,15 +360,16 @@ class AbstractNoiseScheduler(nn.Module, ABC):
         pass
 
     def forward(self, x, timesteps, noise=None, return_noise=True):
+        device = x.device
         # Make sure that the timesteps are broadcasted correctly
         # so the element-wise operation on the latents work.
-        batched_timesteps = timesteps.reshape(-1, 1, 1, 1).float().to(x.device)
+        batched_timesteps = timesteps.reshape(-1, 1, 1, 1).float()
         # Normalize the timesteps
         batched_timesteps = batched_timesteps / self.num_timesteps
         gamma = self.gamma_func(batched_timesteps)
 
         if noise is None:
-            noise = torch.randn_like(x, device=x.device)
+            noise = torch.randn_like(x, device=device)
 
         if return_noise is True:
             return torch.sqrt(gamma) * x + torch.sqrt(1 - gamma) * noise, noise
@@ -417,10 +415,11 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
         self.tau = tau
 
     def gamma_func(self, timesteps):
+        device = timesteps.device
         # Make sure the parameters are on the same device like the timesteps
-        start = torch.tensor(self.start, device=timesteps.device)
-        end = torch.tensor(self.end, device=timesteps.device)
-        tau = torch.tensor(self.tau, device=timesteps.device)
+        start = torch.tensor(self.start, device=device)
+        end = torch.tensor(self.end, device=device)
+        tau = torch.tensor(self.tau, device=device)
         # A gamma function based on cosine function, timesteps in [0, 1] (normalized)
         v_start = torch.cos(start * torch.pi / 2) ** (2 * tau)
         v_end = torch.cos(end * torch.pi / 2) ** (2 * tau)
@@ -453,10 +452,11 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
         self.tau = tau
 
     def gamma_func(self, timesteps):
+        device = timesteps.device
         # Make sure the parameters are on the same device like the timesteps
-        start = torch.tensor(self.start, device=timesteps.device)
-        end = torch.tensor(self.end, device=timesteps.device)
-        tau = torch.tensor(self.tau, device=timesteps.device)
+        start = torch.tensor(self.start, device=device)
+        end = torch.tensor(self.end, device=device)
+        tau = torch.tensor(self.tau, device=device)
         # A gamma function based on sigmoid function, timesteps in [0, 1] (normalized)
         v_start = F.sigmoid(start / tau)
         v_end = F.sigmoid(end / tau)
