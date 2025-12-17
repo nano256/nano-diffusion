@@ -14,10 +14,7 @@ from diffusion.trainer import NanoDiffusionTrainer
 from diffusion.utils import CosineNoiseScheduler
 
 
-def load_cifar10_latents(
-    data_path="./data/cifar10_latents_debug/cifar10_latents.pt",
-    # data_path="./data/cifar10_latents/cifar10_latents.pt"
-):
+def load_cifar10_latents(data_path="./data/cifar10_latents/cifar10_latents.pt"):
     data_path = Path(data_path)
     if not data_path.exists():
         raise FileNotFoundError(
@@ -47,7 +44,7 @@ def create_dataloaders(
     return train_loader, val_loader
 
 
-def train(experiment_name=None, device: str = None):
+def train(epochs, experiment_name=None, device: str = None):
     if device is None:
         if torch.cuda.is_available():
             device = "cuda"
@@ -103,7 +100,7 @@ def train(experiment_name=None, device: str = None):
 
     print("Starting training...")
     trainer.train(
-        epochs=2,
+        epochs=epochs,
         optimizer=optimizer,
         lr_scheduler=lr_scheduler,
         train_dataloader=train_loader,
