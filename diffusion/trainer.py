@@ -175,7 +175,9 @@ class NanoDiffusionTrainer:
                 epoch % self.trainer_config.save_every_n_epochs == 0
                 or epoch == epochs - 1
             ):
-                current_loss = avg_val_loss if avg_val_loss is not None else loss.item()
+                current_loss = (
+                    avg_val_loss if avg_val_loss is not None else loss.detach().item()
+                )
                 self.save_checkpoint(epoch, optimizer, lr_scheduler, current_loss)
 
             lr_scheduler.step()
