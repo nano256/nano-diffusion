@@ -1,9 +1,21 @@
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
 import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
+
+
+@dataclass
+class NanoDiffusionTrainerConfig:
+    model: object
+    noise_scheduler: object
+    loss_fn: str = "mse_loss"
+    validation_interval: int = 10
+    checkpoint_dir: str = "./checkpoints"
+    save_every_n_epochs: int = 10
+    keep_n_checkpoints: int = 3
 
 
 class NanoDiffusionTrainer:
@@ -14,23 +26,10 @@ class NanoDiffusionTrainer:
     checkpoints etc., and everything concerning the training run in the train function.
     """
 
-    def __init__(
-        self,
-        model,
-        noise_scheduler,
-        loss_fn="mse_loss",
-        validation_interval=10,
-        checkpoint_dir="./checkpoints",
-        save_every_n_epochs=10,
-        keep_n_checkpoints=3,
-    ):
-        self.model = model
-        self.noise_scheduler = noise_scheduler
-        self.loss_fn = getattr(F, loss_fn)
-        self.validation_interval = validation_interval
-        self.checkpoint_dir = Path(checkpoint_dir)
-        self.save_every_n_epochs = save_every_n_epochs
-        self.keep_n_checkpoints = keep_n_checkpoints
+    def __init__(self, trainer_config: NanoDiffusionTrainerConfig):
+        self.trainer_config = trainer_config
+        self.loss_fn = getattr(F, trainer_config.loss_fn)
+        self.checkpoint_dir = Path(trainer_config.checkpoint_dir)
         self.best_val_loss = float("inf")
         self.saved_checkpoints = []  # Track saved checkpoint paths
 
@@ -42,20 +41,23 @@ class NanoDiffusionTrainer:
         latents = latents.to(dtype=torch.float32)
         device = latents.device
         timesteps = torch.randint(
-            0, self.noise_scheduler.num_timesteps, (latents.shape[0],), device=device
+            0,
+            self.trainer_config.noise_scheduler.num_timesteps,
+            (latents.shape[0],),
+            device=device,
         )
         noise = torch.randn_like(latents, device=device)
-        noised_latents = self.noise_scheduler(
+        noised_latents = self.trainer_config.noise_scheduler(
             latents, timesteps, noise, return_noise=False
         )
-        pred_noise = self.model(noised_latents, timesteps, context)
+        pred_noise = self.trainer_config.model(noised_latents, timesteps, context)
         return self.loss_fn(pred_noise, noise)
 
     def save_checkpoint(self, epoch, optimizer, lr_scheduler, loss, is_best=False):
         """Save model checkpoint with optional cleanup of old checkpoints"""
         checkpoint = {
             "epoch": epoch,
-            "model_state_dict": self.model.state_dict(),
+            "model_state_dict": self.trainer_config.model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
             "lr_scheduler_state_dict": lr_scheduler.state_dict(),
             "loss": loss,
@@ -76,7 +78,7 @@ class NanoDiffusionTrainer:
             self.saved_checkpoints.append(checkpoint_path)
 
             # Remove old checkpoints if we exceed the limit
-            if len(self.saved_checkpoints) > self.keep_n_checkpoints:
+            if len(self.saved_checkpoints) > self.trainer_config.keep_n_checkpoints:
                 old_checkpoint = self.saved_checkpoints.pop(0)
                 if old_checkpoint.exists():
                     old_checkpoint.unlink()
@@ -147,7 +149,7 @@ class NanoDiffusionTrainer:
             avg_val_loss = None
             if (
                 val_dataloader is not None
-                and epoch % self.validation_interval == 0
+                and epoch % self.trainer_config.validation_interval == 0
                 and epoch != 0
             ):
                 with torch.no_grad():
@@ -169,7 +171,10 @@ class NanoDiffusionTrainer:
                         )
 
             # Save regular checkpoint every N epochs
-            if epoch % self.save_every_n_epochs == 0 or epoch == epochs - 1:
+            if (
+                epoch % self.trainer_config.save_every_n_epochs == 0
+                or epoch == epochs - 1
+            ):
                 current_loss = avg_val_loss if avg_val_loss is not None else loss.item()
                 self.save_checkpoint(epoch, optimizer, lr_scheduler, current_loss)
 

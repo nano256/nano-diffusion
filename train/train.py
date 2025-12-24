@@ -10,7 +10,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 import typer
 
 from diffusion.model import ModelConfig, NanoDiffusionModel
-from diffusion.trainer import NanoDiffusionTrainer
+from diffusion.trainer import NanoDiffusionTrainer, NanoDiffusionTrainerConfig
 from diffusion.utils import CosineNoiseScheduler
 
 
@@ -63,7 +63,9 @@ def train(epochs, experiment_name=None, device: str = None):
     torch.multiprocessing.set_start_method("spawn")
 
     try:
-        train_latents, train_labels, test_latents, test_labels = load_cifar10_latents()
+        train_latents, train_labels, test_latents, test_labels = load_cifar10_latents(
+            "/Users/michel/git/nano-diffusion/data/cifar10_latents_debug/cifar10_latents.pt"
+        )
         print(
             f"Loaded {len(train_latents)} training samples, {len(test_latents)} test samples"
         )
@@ -88,12 +90,14 @@ def train(epochs, experiment_name=None, device: str = None):
 
     noise_scheduler = CosineNoiseScheduler(num_timesteps=1000)
 
-    trainer = NanoDiffusionTrainer(
+    trainer_config = NanoDiffusionTrainerConfig(
         model=model,
         noise_scheduler=noise_scheduler,
         validation_interval=5,
         save_every_n_epochs=10,
     )
+
+    trainer = NanoDiffusionTrainer(trainer_config)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)

@@ -1,7 +1,7 @@
 """Nano Diffusion - Educational diffusion model implementation."""
 
 from .model import ModelConfig, NanoDiffusionModel
-from .trainer import NanoDiffusionTrainer
+from .trainer import NanoDiffusionTrainer, NanoDiffusionTrainerConfig
 from .utils import (
     AdaLNSingle,
     CosineNoiseScheduler,
@@ -18,6 +18,7 @@ __all__ = [
     "NanoDiffusionModel",
     "ModelConfig",
     "NanoDiffusionTrainer",
+    "NanoDiffusionTrainerConfig",
     "DiTBlock",
     "PatchEmbedding",
     "TimeEmbedding",
