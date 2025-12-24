@@ -44,7 +44,8 @@ def create_dataloaders(
     return train_loader, val_loader
 
 
-def train(epochs, experiment_name=None, device: str = None):
+# Set epoch explicitly as option so that --epoch works in the CLI
+def train(epochs: int = typer.Option(...), experiment_name=None, device: str = None):
     if device is None:
         if torch.cuda.is_available():
             device = "cuda"
