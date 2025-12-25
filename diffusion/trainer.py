@@ -1,10 +1,9 @@
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 
+import mlflow
 import torch
 import torch.nn.functional as F
-from torch.utils.tensorboard import SummaryWriter
 
 
 @dataclass
@@ -54,7 +53,14 @@ class NanoDiffusionTrainer:
         return self.loss_fn(pred_noise, noise)
 
     def save_checkpoint(self, epoch, optimizer, lr_scheduler, loss, is_best=False):
-        """Save model checkpoint with optional cleanup of old checkpoints"""
+        """Save model checkpoint with optional cleanup of old checkpoints.
+
+        The reason this isn't done with MLflow only is because it doesn't support
+        deleting once logged models which leads to a disk space overhead when
+        saving regualrly to be able to retrieve aborted runs.
+        TODO: Make checkpoint_dir in accordance with the experiment and run names
+        TODO: Log checkpoint paths in MLflow
+        """
         checkpoint = {
             "epoch": epoch,
             "model_state_dict": self.trainer_config.model.state_dict(),
@@ -115,15 +121,7 @@ class NanoDiffusionTrainer:
         lr_scheduler,
         train_dataloader,
         val_dataloader=None,
-        experiment_name=None,
-        log_dir="./runs",
     ):
-        log_dir = Path(log_dir)
-        if experiment_name is None:
-            experiment_name = (
-                f"nano-diffusion_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-            )
-        writer = SummaryWriter(log_dir / experiment_name)
         for epoch in range(epochs):
             num_prev_batches = epoch * len(train_dataloader)
             for batch_idx, batch in enumerate(train_dataloader):
@@ -132,17 +130,16 @@ class NanoDiffusionTrainer:
                 loss.backward()
                 optimizer.step()
 
-                # Log everything
-                # Detach loss tensor first to suppress scalar conversion warning
-                writer.add_scalar(
-                    "loss_train",
-                    loss.detach().item(),
-                    num_prev_batches + batch_idx,
-                )
-                writer.add_scalar(
-                    "learning_rate",
-                    optimizer.param_groups[0]["lr"],
-                    num_prev_batches + batch_idx,
+                """Log everything. Assumes mlflow run is already started, if not it
+                just start an unlabeled run.
+                Detach loss tensor first to suppress scalar conversion warning
+                """
+                mlflow.log_metrics(
+                    {
+                        "loss_train": loss.detach().item(),
+                        "learning_rate": optimizer.param_groups[0]["lr"],
+                    },
+                    step=(num_prev_batches + batch_idx),
                 )
 
             # Validation and checkpointing
@@ -157,17 +154,21 @@ class NanoDiffusionTrainer:
                     for batch in val_dataloader:
                         val_losses.append(self.compute_loss(batch).item())
                     avg_val_loss = sum(val_losses) / len(val_losses)
-                    writer.add_scalar(
+                    mlflow.log_metric(
                         "loss_val",
                         avg_val_loss,
-                        num_prev_batches + len(train_dataloader),
+                        step=(num_prev_batches + len(train_dataloader)),
                     )
 
                     # Save best model if validation loss improved
                     if avg_val_loss < self.best_val_loss:
                         self.best_val_loss = avg_val_loss
                         self.save_checkpoint(
-                            epoch, optimizer, lr_scheduler, avg_val_loss, is_best=True
+                            epoch,
+                            optimizer,
+                            lr_scheduler,
+                            avg_val_loss,
+                            is_best=True,
                         )
 
             # Save regular checkpoint every N epochs
@@ -181,4 +182,3 @@ class NanoDiffusionTrainer:
                 self.save_checkpoint(epoch, optimizer, lr_scheduler, current_loss)
 
             lr_scheduler.step()
-        writer.close()

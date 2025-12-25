@@ -1,8 +1,10 @@
 # Downloaded and preprocessed data
 data/
 
-# Experiment artifcats
+# Experiment artifacts
 runs/
+mlruns/
+mlflow.db
 checkpoints/
 
 # IDE and AI helper settings

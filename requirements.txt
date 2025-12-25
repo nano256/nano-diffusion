@@ -3,4 +3,5 @@ Pillow
 tqdm
 typer
 pytest
+mlflow
 -e .

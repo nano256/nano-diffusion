@@ -1,7 +1,7 @@
 import sys
-from datetime import datetime
 from pathlib import Path
 
+import mlflow
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
@@ -59,9 +59,6 @@ def train(
         else:
             device = "cpu"
 
-    if experiment_name is None:
-        experiment_name = datetime.now().strftime("%Y%m%d_%H%M%S") + "_cifar10"
-
     print(f"Using device: {device}")
     device = torch.device(device)
 
@@ -113,15 +110,28 @@ def train(
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 
-    print("Starting training...")
-    trainer.train(
-        epochs=epochs,
-        optimizer=optimizer,
-        lr_scheduler=lr_scheduler,
-        train_dataloader=train_loader,
-        val_dataloader=val_loader,
-        experiment_name=experiment_name,
-    )
+    if experiment_name is None:
+        experiment_name = "cifar10"
+    mlflow.set_experiment(experiment_name)
+
+    with mlflow.start_run():
+        mlflow.log_params(
+            {
+                "epochs": epochs,
+                "experiment_name": experiment_name,
+                "device": device,
+                "debug": debug,
+            }
+        )
+
+        print("Starting training...")
+        trainer.train(
+            epochs=epochs,
+            optimizer=optimizer,
+            lr_scheduler=lr_scheduler,
+            train_dataloader=train_loader,
+            val_dataloader=val_loader,
+        )
 
     print("Training completed!")
 
