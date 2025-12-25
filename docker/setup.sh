@@ -100,7 +100,9 @@ download_or_pull_repo "$REPO_NAME" "$REPO_PATH"
 
 # Start mlflow inside of the repo root dir
 cd "$REPO_PATH"
-mlflow server --port 5000 &
+# The allowed-hosts flag is set to all ("*"), because otherwise mlflow blocks 
+# access from other host headers
+mlflow server --host 0.0.0.0 --port 5000 --allowed-hosts "*" &
 
 # Go back to root dir to ensure consistency for running CMD
 cd "/"
