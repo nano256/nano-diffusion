@@ -98,6 +98,10 @@ fi
 # Clone or pull nano diffusion repo
 download_or_pull_repo "$REPO_NAME" "$REPO_PATH"
 
+# Start mlflow inside of the repo root dir
+cd "$REPO_PATH"
+mlflow server --port 5000 &
+
 # Go back to root dir to ensure consistency for running CMD
 cd "/"
 echo "=== SETUP COMPLETE ==="

@@ -8,17 +8,19 @@ services:
     ports:
       - "8888:8888" 
       - "2222:22"
+      - "5000:5000"
     volumes:
       - workspace:/workspace
       # - ../data:/workspace/repo/data
       # - ../models:/workspace/repo/models
-      # deploy:
-      #   resources:
-      #     reservations:
-      #       devices:
-      #         - driver: nvidia
-      #           count: all
-      #           capabilities: [ gpu ]
+    # TODO: Fix the deployment on my dev ML rig so that it works with this GPU config
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
       - GITHUB_TOKEN=${GITHUB_TOKEN}
