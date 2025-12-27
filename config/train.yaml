@@ -1,0 +1,26 @@
+epochs: 100
+experiment_name: "cifar10"
+debug: False
+model:
+  patch_size: 2
+  hidden_dim: 384
+  num_attention_heads: 6
+  num_dit_blocks: 12
+  num_context_classes: 10
+  in_channels: 16
+  num_timesteps: 1000
+  num_attn_heads: 8
+  dropout: 0.0
+  device: null
+trainer:
+  loss_fn: "mse_loss"
+  validation_interval: 10
+  checkpoint_dir: "./checkpoints"
+  save_every_n_epochs: 10
+  keep_n_checkpoints: 3
+  
+  # This avoids Hydra from logging runs
+  hydra:  
+  output_subdir: null  
+  run:  
+    dir: .

@@ -1,16 +1,15 @@
 import sys
 from pathlib import Path
 
+import hydra
 import mlflow
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 sys.path.append(str(Path(__file__).parent.parent))
 
-import typer
-
-from diffusion.model import ModelConfig, NanoDiffusionModel
-from diffusion.trainer import NanoDiffusionTrainer, NanoDiffusionTrainerConfig
+from diffusion.model import NanoDiffusionModel
+from diffusion.trainer import NanoDiffusionTrainer
 from diffusion.utils import CosineNoiseScheduler
 
 
@@ -44,23 +43,18 @@ def create_dataloaders(
     return train_loader, val_loader
 
 
-# Set epoch explicitly as option so that --epoch works in the CLI
-def train(
-    epochs: int = typer.Option(...),
-    experiment_name=None,
-    device: str = None,
-    debug: bool = False,
-):
-    if device is None:
+@hydra.main(version_base=None, config_path="../config", config_name="train")
+def train(cfg):
+    if cfg.model.device is None:
         if torch.cuda.is_available():
-            device = "cuda"
+            cfg.model.device = "cuda"
         elif torch.backends.mps.is_available():
-            device = "mps"
+            cfg.model.device = "mps"
         else:
-            device = "cpu"
+            cfg.model.device = "cpu"
 
-    print(f"Using device: {device}")
-    device = torch.device(device)
+    print(f"Using device: {cfg.model.device}")
+    device = torch.device(cfg.model.device)
 
     # Without this dataloaders with several workers throw an error.
     torch.multiprocessing.set_start_method("spawn")
@@ -68,7 +62,7 @@ def train(
     try:
         data_path = (
             "./data/cifar10_latents_debug/cifar10_latents.pt"
-            if debug is True
+            if cfg.debug is True
             else "./data/cifar10_latents/cifar10_latents.pt"
         )
         train_latents, train_labels, test_latents, test_labels = load_cifar10_latents(
@@ -92,41 +86,31 @@ def train(
         train_latents, train_labels, test_latents, test_labels, batch_size=32
     )
 
-    config = ModelConfig(device=device)
-    model = NanoDiffusionModel(config).to(device)
+    model = NanoDiffusionModel(cfg.model).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     noise_scheduler = CosineNoiseScheduler(num_timesteps=1000)
 
-    trainer_config = NanoDiffusionTrainerConfig(
-        model=model,
-        noise_scheduler=noise_scheduler,
-        validation_interval=5,
-        save_every_n_epochs=10,
-    )
-
-    trainer = NanoDiffusionTrainer(trainer_config)
+    trainer = NanoDiffusionTrainer(model, noise_scheduler, **cfg.trainer)
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 
-    if experiment_name is None:
-        experiment_name = "cifar10"
-    mlflow.set_experiment(experiment_name)
+    mlflow.set_experiment(cfg.experiment_name)
 
     with mlflow.start_run():
         mlflow.log_params(
             {
-                "epochs": epochs,
-                "experiment_name": experiment_name,
+                "epochs": cfg.epochs,
+                "experiment_name": cfg.experiment_name,
                 "device": device,
-                "debug": debug,
+                "debug": cfg.debug,
             }
         )
 
         print("Starting training...")
         trainer.train(
-            epochs=epochs,
+            epochs=cfg.epochs,
             optimizer=optimizer,
             lr_scheduler=lr_scheduler,
             train_dataloader=train_loader,
@@ -137,4 +121,4 @@ def train(
 
 
 if __name__ == "__main__":
-    typer.run(train)
+    train()

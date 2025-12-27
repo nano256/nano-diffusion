@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 from torch import nn
 
 from diffusion.utils import (
@@ -11,35 +9,13 @@ from diffusion.utils import (
 )
 
 
-@dataclass
-class ModelConfig:
-    patch_size: int = 2
-    hidden_dim: int = 384
-    num_attention_heads: int = 6
-    num_dit_blocks: int = 12
-    num_context_classes: int = 10
-    in_channels: int = 16
-    device: str = "cpu"
-    num_timesteps: int = 1000
-    num_attn_heads: int = 8
-    dropout: float = 0.0
-
-    def __post_init__(self):
-        # Validation logic
-        if self.hidden_dim % self.num_attention_heads != 0:
-            raise ValueError(
-                f"hidden_dim ({self.hidden_dim}) must be divisible by "
-                f"num_attention_heads ({self.num_attention_heads})"
-            )
-
-
 class NanoDiffusionModel(nn.Module):
     def __init__(self, model_config):
         super().__init__()
         self.model_config = model_config
-        self.patch_embedding = PatchEmbedding(**model_config.__dict__)
-        self.time_embedding = TimeEmbedding(**model_config.__dict__)
-        self.adaln_single = AdaLNSingle(**model_config.__dict__)
+        self.patch_embedding = PatchEmbedding(**model_config)
+        self.time_embedding = TimeEmbedding(**model_config)
+        self.adaln_single = AdaLNSingle(**model_config)
         if model_config.num_context_classes:
             self.context_embedding = nn.Embedding(
                 num_embeddings=model_config.num_context_classes,
@@ -55,11 +31,11 @@ class NanoDiffusionModel(nn.Module):
                 DiTBlock(
                     layer_idx=idx,
                     adaln_single=self.adaln_single,
-                    **model_config.__dict__,
+                    **model_config,
                 )
             )
 
-        self.reshaper = Reshaper(**model_config.__dict__)
+        self.reshaper = Reshaper(**model_config)
 
     def forward(self, x, timestep, context):
         time_embedding = self.time_embedding(timestep)
