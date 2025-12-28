@@ -98,15 +98,15 @@ def train(cfg):
     with mlflow.start_run():
         run = mlflow.active_run()
         checkpoint_dir = Path(
-            f"./checkpoints/{slugify(cfg.experiment_name)}_{run.info.run_name}"
-        )
+            f"./checkpoints/{slugify(cfg.experiment_name)}/{run.info.run_name}"
+        ).resolve()
 
         mlflow.log_params(
             {
                 "epochs": cfg.epochs,
                 "device": device,
                 "debug": cfg.debug,
-                "checkpoint_dir": checkpoint_dir,
+                "checkpoint_dir": str(checkpoint_dir),
             }
         )
 
