@@ -10,7 +10,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from diffusion.model import NanoDiffusionModel
 from diffusion.trainer import NanoDiffusionTrainer
-from diffusion.utils import CosineNoiseScheduler
+from diffusion.utils import CosineNoiseScheduler, slugify
 
 
 def load_cifar10_latents(data_path):
@@ -90,22 +90,28 @@ def train(cfg):
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 
     noise_scheduler = CosineNoiseScheduler(num_timesteps=1000)
-
-    trainer = NanoDiffusionTrainer(model, noise_scheduler, **cfg.trainer)
-
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 
     mlflow.set_experiment(cfg.experiment_name)
 
     with mlflow.start_run():
+        run = mlflow.active_run()
+        checkpoint_dir = Path(
+            f"./checkpoints/{slugify(cfg.experiment_name)}_{run.info.run_name}"
+        )
+
         mlflow.log_params(
             {
                 "epochs": cfg.epochs,
-                "experiment_name": cfg.experiment_name,
                 "device": device,
                 "debug": cfg.debug,
+                "checkpoint_dir": checkpoint_dir,
             }
+        )
+
+        trainer = NanoDiffusionTrainer(
+            model, noise_scheduler, checkpoint_dir, **cfg.trainer
         )
 
         print("Starting training...")

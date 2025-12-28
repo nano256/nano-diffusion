@@ -15,7 +15,6 @@ model:
 trainer:
   loss_fn: "mse_loss"
   validation_interval: 10
-  checkpoint_dir: "./checkpoints"
   save_every_n_epochs: 10
   keep_n_checkpoints: 3
   

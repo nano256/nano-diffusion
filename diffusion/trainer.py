@@ -17,9 +17,9 @@ class NanoDiffusionTrainer:
         self,
         model,
         noise_scheduler,
+        checkpoint_dir,
         loss_fn: str = "mse_loss",
         validation_interval: int = 10,
-        checkpoint_dir: str = "./checkpoints",
         save_every_n_epochs: int = 10,
         keep_n_checkpoints: int = 3,
     ):
