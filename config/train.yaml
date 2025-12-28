@@ -19,8 +19,8 @@ trainer:
   save_every_n_epochs: 10
   keep_n_checkpoints: 3
   
-# This avoids Hydra from logging runs
-hydra:  
+  # This avoids Hydra from logging runs
+  hydra:  
   output_subdir: null  
   run:  
     dir: .
