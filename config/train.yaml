@@ -20,7 +20,7 @@ trainer:
   keep_n_checkpoints: 3
   
   # This avoids Hydra from logging runs
-  hydra:  
+hydra:  
   output_subdir: null  
   run:  
     dir: .
