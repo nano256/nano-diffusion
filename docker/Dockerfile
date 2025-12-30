@@ -7,9 +7,11 @@ ENV TRANSFORMERS_CACHE=/workspace/transformers
 ENV DIFFUSERS_CACHE=/workspace/diffusers
 
 # Install git and SSH server for Runpod shell access
+# Install tmux for persistent shells
 RUN apt-get update && apt-get install -y \
     git \
     openssh-server \
+    tmux \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
