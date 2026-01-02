@@ -537,3 +537,22 @@ def get_available_device():
         return torch.device("mps")
     else:
         return torch.device("cpu")
+
+
+# Due to problems with the DataLoaders on Windows and MacOS, we can't use
+# lambda functions in the dataset transform, hence the custom classes.
+# https://stackoverflow.com/questions/70608810/pytorch-cant-pickle-lambda
+class TensorDeviceConvertor:
+    def __init__(self, device=None, dtype=None):
+        self.device = device
+        self.dtype = dtype
+
+    def __call__(self, tensor):
+        return tensor.to(device=self.device, dtype=self.dtype)
+
+
+# The CIFAR images already are already normalized to [0,1], so we only do
+# the transform to [-1,1].
+class TensorCifarNormalizer:
+    def __call__(self, tensor):
+        return 2.0 * tensor - 1.0  # [0,1] -> [-1,1]
