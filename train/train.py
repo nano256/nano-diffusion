@@ -10,7 +10,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from diffusion.model import NanoDiffusionModel
 from diffusion.trainer import NanoDiffusionTrainer
-from diffusion.utils import CosineNoiseScheduler, slugify
+from diffusion.utils import CosineNoiseScheduler, get_available_device, slugify
 
 
 def load_cifar10_latents(data_path):
@@ -45,16 +45,12 @@ def create_dataloaders(
 
 @hydra.main(version_base=None, config_path="../config", config_name="config")
 def train(cfg):
-    if cfg.model.device is None:
-        if torch.cuda.is_available():
-            cfg.model.device = "cuda"
-        elif torch.backends.mps.is_available():
-            cfg.model.device = "mps"
-        else:
-            cfg.model.device = "cpu"
-
-    print(f"Using device: {cfg.model.device}")
-    device = torch.device(cfg.model.device)
+    device = (
+        get_available_device()
+        if cfg.model.device is None
+        else torch.device(cfg.model.device)
+    )
+    print(f"Using device: {device}")
 
     # Without this dataloaders with several workers throw an error.
     torch.multiprocessing.set_start_method("spawn")
