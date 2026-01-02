@@ -1,5 +1,6 @@
-epochs: 100
 experiment_name: "cifar10"
+epochs: 100
+batch_size: 256
 debug: False
 model:
   patch_size: 2

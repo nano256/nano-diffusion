@@ -83,7 +83,11 @@ def train(cfg):
     test_labels = test_labels.to(device)
 
     train_loader, val_loader = create_dataloaders(
-        train_latents, train_labels, test_latents, test_labels, batch_size=32
+        train_latents,
+        train_labels,
+        test_latents,
+        test_labels,
+        batch_size=cfg.batch_size,
     )
 
     model = NanoDiffusionModel(cfg.model).to(device)
