@@ -43,7 +43,7 @@ def create_dataloaders(
     return train_loader, val_loader
 
 
-@hydra.main(version_base=None, config_path="../config", config_name="train")
+@hydra.main(version_base=None, config_path="../config", config_name="config")
 def train(cfg):
     if cfg.model.device is None:
         if torch.cuda.is_available():
