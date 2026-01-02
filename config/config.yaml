@@ -1,6 +1,7 @@
 experiment_name: "cifar10"
 epochs: 100
 batch_size: 256
+data_dtype: float16
 debug: False
 model:
   patch_size: 2
@@ -11,6 +12,7 @@ model:
   in_channels: 16
   num_timesteps: 1000
   num_attn_heads: 8
+  vae_name: "ostris/vae-kl-f8-d16"
   dropout: 0.0
   device: null
 trainer:

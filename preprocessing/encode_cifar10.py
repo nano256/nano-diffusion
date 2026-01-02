@@ -1,12 +1,14 @@
 from pathlib import Path
 
+import hydra
 import torch
 import torchvision.transforms as transforms
-import typer
 from diffusers.models import AutoencoderKL
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10
 from tqdm import tqdm
+
+from diffusion.utils import get_available_device
 
 
 def encode_images(dataloader, vae):
@@ -44,25 +46,27 @@ class TensorNormalizer:
         return 2.0 * tensor - 1.0  # [0,1] -> [-1,1]
 
 
-def encode_and_save_cifar10_latents(
-    vae_model_id="ostris/vae-kl-f8-d16",
-    batch_size: int = 128,
-    device="cuda",
-    dtype="float32",
-    debug: bool = False,
-):
+@hydra.main(version_base=None, config_path="../config", config_name="config")
+def encode_and_save_cifar10_latents(cfg):
     """
     Encode images to latents and save as .pt files for torch dataset loading
     """
+    device = (
+        get_available_device()
+        if cfg.model.device is None
+        else torch.device(cfg.model.device)
+    )
+    print(f"Using device: {device}")
+
     # Without this dataloaders with several workers throw an error.
     torch.multiprocessing.set_start_method("spawn")
-    # typer can only pass primitives without additional
+    # From config files, we can only pass primitives without additional
     # config, hence we solve the dtype like this.
-    dtype = getattr(torch, dtype)
-    # CPUs are  much slower in float16 than in float32,
+    dtype = getattr(torch, cfg.data_dtype)
+    # CPUs are much slower in float16 than in float32,
     # therefore we convert the tensors at the end.
     if device == "cpu":
-        final_dtype = dtype
+        final_dtype = cfg.dtype
         dtype = torch.float32
 
     data_dir = Path(__file__).parent.parent / "data"
@@ -72,7 +76,9 @@ def encode_and_save_cifar10_latents(
 
     # Load VAE
     vae = (
-        AutoencoderKL.from_pretrained(vae_model_id, torch_dtype=dtype).to(device).eval()
+        AutoencoderKL.from_pretrained(cfg.model.vae_name, torch_dtype=dtype)
+        .to(device)
+        .eval()
     )
     # Image transform
     transform = transforms.Compose(
@@ -87,7 +93,7 @@ def encode_and_save_cifar10_latents(
     print("Download test dataset...")
     testset = CIFAR10(root=cifar10_dir, train=False, download=True, transform=transform)
 
-    if debug is True:
+    if cfg.debug is True:
         trainset = Subset(trainset, torch.arange(10))
         testset = Subset(testset, torch.arange(10))
         output_dir_name = output_dir_name + "_debug"
@@ -96,10 +102,10 @@ def encode_and_save_cifar10_latents(
     output_dir.mkdir(exist_ok=True)
 
     trainloader = DataLoader(
-        trainset, batch_size=batch_size, shuffle=False, num_workers=2
+        trainset, batch_size=cfg.batch_size, shuffle=False, num_workers=2
     )
     testloader = DataLoader(
-        testset, batch_size=batch_size, shuffle=False, num_workers=2
+        testset, batch_size=cfg.batch_size, shuffle=False, num_workers=2
     )
 
     print("Transform train dataset...")
@@ -124,4 +130,4 @@ def encode_and_save_cifar10_latents(
 
 
 if __name__ == "__main__":
-    typer.run(encode_and_save_cifar10_latents)
+    encode_and_save_cifar10_latents()
