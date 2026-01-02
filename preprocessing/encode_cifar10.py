@@ -65,7 +65,7 @@ def encode_and_save_cifar10_latents(cfg):
     dtype = getattr(torch, cfg.data_dtype)
     # CPUs are much slower in float16 than in float32,
     # therefore we convert the tensors at the end.
-    if device == "cpu":
+    if device == torch.device("cpu"):
         final_dtype = cfg.dtype
         dtype = torch.float32
 
@@ -114,7 +114,7 @@ def encode_and_save_cifar10_latents(cfg):
     test_latents, test_labels = encode_images(testloader, vae)
 
     # Transform the tensors to the correct dtype before saving
-    if device == "cpu":
+    if device == torch.device("cpu"):
         train_latents = list(map(lambda x: x.to(dtype=final_dtype), train_latents))
         test_latents = list(map(lambda x: x.to(dtype=final_dtype), test_latents))
 
