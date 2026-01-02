@@ -126,6 +126,7 @@ class NanoDiffusionTrainer:
         for epoch in range(epochs):
             num_prev_batches = epoch * len(train_dataloader)
             for batch_idx, batch in enumerate(train_dataloader):
+                step = num_prev_batches + batch_idx
                 optimizer.zero_grad()
                 loss = self.compute_loss(batch)
                 loss.backward()
@@ -140,7 +141,7 @@ class NanoDiffusionTrainer:
                         "loss_train": loss.detach().item(),
                         "learning_rate": optimizer.param_groups[0]["lr"],
                     },
-                    step=(num_prev_batches + batch_idx),
+                    step,
                 )
 
             # Validation and checkpointing
@@ -155,11 +156,7 @@ class NanoDiffusionTrainer:
                     for batch in val_dataloader:
                         val_losses.append(self.compute_loss(batch).item())
                     avg_val_loss = sum(val_losses) / len(val_losses)
-                    mlflow.log_metric(
-                        "loss_val",
-                        avg_val_loss,
-                        step=(num_prev_batches + len(train_dataloader)),
-                    )
+                    mlflow.log_metric("loss_val", avg_val_loss, step)
 
                     # Save best model if validation loss improved
                     if avg_val_loss < self.best_val_loss:
