@@ -93,6 +93,7 @@ def train(cfg):
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 
+    mlflow.enable_system_metrics_logging()
     mlflow.set_experiment(cfg.experiment_name)
 
     with mlflow.start_run():
