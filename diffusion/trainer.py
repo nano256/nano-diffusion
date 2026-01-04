@@ -4,6 +4,8 @@ import mlflow
 import torch
 import torch.nn.functional as F
 
+from diffusion.utils import EulerSampler, decode_latents
+
 
 class NanoDiffusionTrainer:
     """Trainer for the Nano Diffusion model
@@ -17,19 +19,29 @@ class NanoDiffusionTrainer:
         self,
         model,
         noise_scheduler,
-        checkpoint_dir,
+        checkpoint_dir: str | Path,
+        num_sampling_steps: int,
         loss_fn: str = "mse_loss",
         validation_interval: int = 10,
         save_every_n_epochs: int = 10,
         keep_n_checkpoints: int = 3,
+        vae=None,
+        validation_context: list[int] | None = None,
     ):
         self.model = model
         self.noise_scheduler = noise_scheduler
+        self.checkpoint_dir = Path(checkpoint_dir)
+        self.num_sampling_steps = num_sampling_steps
         self.loss_fn = getattr(F, loss_fn)
         self.validation_interval = validation_interval
-        self.checkpoint_dir = Path(checkpoint_dir)
         self.save_every_n_epochs = save_every_n_epochs
         self.keep_n_checkpoints = keep_n_checkpoints
+        self.vae = vae
+        # Context is provided in classes, hence the direct conversion
+        self.validation_context = (
+            None if validation_context is None else torch.tensor(validation_context)
+        )
+
         self.best_val_loss = float("inf")
         self.saved_checkpoints = []  # Track saved checkpoint paths
 
@@ -123,9 +135,14 @@ class NanoDiffusionTrainer:
         train_dataloader,
         val_dataloader=None,
     ):
+        latent_shape = None
         for epoch in range(epochs):
             num_prev_batches = epoch * len(train_dataloader)
             for batch_idx, batch in enumerate(train_dataloader):
+                # Grab the latent shape for image generation sanity checks later
+                if latent_shape is None:
+                    latents, _ = batch
+                    latent_shape = latents.shape[1:]
                 step = num_prev_batches + batch_idx
                 optimizer.zero_grad()
                 loss = self.compute_loss(batch)
@@ -168,6 +185,24 @@ class NanoDiffusionTrainer:
                             avg_val_loss,
                             is_best=True,
                         )
+
+            # Log some image generations as sanity check
+            if (
+                self.validation_context is not None
+                and self.vae is not None
+                and epoch % self.validation_interval == 0
+            ):
+                with torch.no_grad():
+                    sampler = EulerSampler(
+                        self.model, self.noise_scheduler, 1000, self.num_sampling_steps
+                    )
+                    noise = torch.randn(
+                        self.validation_interval.shape[0], *latent_shape
+                    )
+                    latents = sampler.sample(noise, self.validation_context)
+                    images = decode_latents(latents, self.vae)
+                    for image, context in zip(images, self.validation_context):
+                        mlflow.log_image(image, f"{context.item()}.jpg", step=step)
 
             # Save regular checkpoint every N epochs
             if epoch % self.save_every_n_epochs == 0 or epoch == epochs - 1:
