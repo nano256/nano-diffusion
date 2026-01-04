@@ -121,8 +121,9 @@ class TimeEmbedding(nn.Module):
         self.hidden_dim = hidden_dim
 
         half_hidden_dim = hidden_dim // 2
-        freq_idx = torch.arange(half_hidden_dim, device=device)
-        self.omega = 1 / 10 ** (4 * freq_idx / half_hidden_dim)
+        freq_idx = torch.arange(half_hidden_dim).to(device)
+        # Register omega so it moves device with the module
+        self.register_buffer("omega", 1 / 10 ** (4 * freq_idx / half_hidden_dim))
 
     def forward(self, timesteps):
         # make sure that when several timesteps are given that they have a shape of (batch, 1)
