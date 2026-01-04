@@ -4,6 +4,7 @@ from pathlib import Path
 import hydra
 import mlflow
 import torch
+from diffusers.models import AutoencoderKL
 from torch.utils.data import DataLoader, TensorDataset
 
 sys.path.append(str(Path(__file__).parent.parent))
@@ -93,6 +94,11 @@ def train(cfg):
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 
+    # Only load VAE if we do sanity check image generation throughout the run
+    if cfg.trainer.validation_context is not None:
+        # Load VAE to CPU to not clog up the GPU during training
+        vae = AutoencoderKL.from_pretrained(cfg.model.vae_name).to("cpu").eval()
+
     mlflow.enable_system_metrics_logging()
     mlflow.set_experiment(cfg.experiment_name)
 
@@ -112,7 +118,7 @@ def train(cfg):
         )
 
         trainer = NanoDiffusionTrainer(
-            model, noise_scheduler, checkpoint_dir, **cfg.trainer
+            model, noise_scheduler, checkpoint_dir, vae=vae, **cfg.trainer
         )
 
         print("Starting training...")
