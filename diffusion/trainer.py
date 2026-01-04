@@ -163,11 +163,7 @@ class NanoDiffusionTrainer:
 
             # Validation and checkpointing
             avg_val_loss = None
-            if (
-                val_dataloader is not None
-                and epoch % self.validation_interval == 0
-                and epoch != 0
-            ):
+            if val_dataloader is not None and epoch % self.validation_interval == 0:
                 with torch.no_grad():
                     val_losses = []
                     for batch in val_dataloader:
