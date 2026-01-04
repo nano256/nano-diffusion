@@ -172,7 +172,7 @@ class NanoDiffusionTrainer:
                     mlflow.log_metric("loss_val", avg_val_loss, step)
 
                     # Save best model if validation loss improved
-                    if avg_val_loss < self.best_val_loss:
+                    if avg_val_loss < self.best_val_loss and epoch != 0:
                         self.best_val_loss = avg_val_loss
                         self.save_checkpoint(
                             epoch,
