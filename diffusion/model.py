@@ -25,7 +25,7 @@ class NanoDiffusionModel(nn.Module):
         else:
             raise ValueError("`num_context_classes` is not defined.")
 
-        self.dit_blocks = []
+        self.dit_blocks = nn.ModuleList()
         for idx in range(model_config.num_dit_blocks):
             self.dit_blocks.append(
                 DiTBlock(
