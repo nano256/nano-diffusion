@@ -204,7 +204,14 @@ class NanoDiffusionTrainer:
 
                     images = decode_latents(latents, self.vae)
                     for image, context in zip(images, self.validation_context):
-                        mlflow.log_image(image, key=f"{context.item()}", step=step)
+                        mlflow.log_image(
+                            image,
+                            key=f"{context.item()}",
+                            # Set file name to avoid UI display bug:
+                            # https://github.com/mlflow/mlflow/issues/14136
+                            artifact_file=f"class_{context.item()}_step_{step:08d}.png",
+                            step=step,
+                        )
                 self.model.train()
 
             # Save regular checkpoint every N epochs
