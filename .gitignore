@@ -5,6 +5,7 @@ data/
 runs/
 mlruns/
 mlflow.db
+mlflow.db-journal
 checkpoints/
 
 # IDE and AI helper settings
