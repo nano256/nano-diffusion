@@ -190,6 +190,7 @@ class NanoDiffusionTrainer:
             ):
                 model_device = next(self.model.parameters()).device
                 vae_device = next(self.vae.parameters()).device
+                self.model.eval()
                 with torch.no_grad():
                     sampler = EulerSampler(
                         self.model, self.noise_scheduler, 1000, self.num_sampling_steps
@@ -204,6 +205,7 @@ class NanoDiffusionTrainer:
                     images = decode_latents(latents, self.vae)
                     for image, context in zip(images, self.validation_context):
                         mlflow.log_image(image, key=f"{context.item()}", step=step)
+                self.model.train()
 
             # Save regular checkpoint every N epochs
             if epoch % self.save_every_n_epochs == 0 or epoch == epochs - 1:
