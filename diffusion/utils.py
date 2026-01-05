@@ -232,7 +232,7 @@ class DiTBlock(nn.Module):
         layer_idx,
         adaln_single,
         hidden_dim,
-        num_attn_heads,
+        num_attention_heads,
         dropout,
         device,
         **kwargs,
@@ -243,11 +243,11 @@ class DiTBlock(nn.Module):
         self.layer_idx = layer_idx
         self.adaln_single = adaln_single
         self.dropout = dropout
-        self.num_attn_heads = num_attn_heads
+        self.num_attention_heads = num_attention_heads
 
         self.multi_head_attn = nn.MultiheadAttention(
             hidden_dim,
-            num_attn_heads,
+            num_attention_heads,
             dropout,
             batch_first=True,
             device=device,
