@@ -1,4 +1,4 @@
-experiment_name: "cifar10"
+experiment_name: "cifar10_debug"
 epochs: 10
 batch_size: 256
 data_dtype: float16
