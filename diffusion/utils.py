@@ -503,7 +503,7 @@ class EulerSampler:
             # Add noise again equivalent of the noise step from which we will do the next prediction
             x_t = (
                 torch.sqrt(gamma_t[idx + 1]) * x_0_pred
-                + torch.sqrt(1 - gamma_t[idx + 1]) * x_T
+                + torch.sqrt(1 - gamma_t[idx + 1]) * noise_pred
             )
 
         # Predict the last noise step...
