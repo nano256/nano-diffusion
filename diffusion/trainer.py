@@ -73,7 +73,9 @@ class NanoDiffusionTrainer:
 
         return loss
 
-    def save_checkpoint(self, epoch, optimizer, lr_scheduler, loss, is_best=False):
+    def save_checkpoint(
+        self, epoch, optimizer, lr_scheduler, noise_schduler, loss, is_best=False
+    ):
         """Save model checkpoint with optional cleanup of old checkpoints.
 
         The reason this isn't done with MLflow only is because it doesn't support
@@ -82,7 +84,9 @@ class NanoDiffusionTrainer:
         """
         checkpoint = {
             "epoch": epoch,
+            "model_config": self.model.config,
             "model_state_dict": self.model.state_dict(),
+            "noise_scheduler_config": self.noise_scheduler.config,
             "optimizer_state_dict": optimizer.state_dict(),
             "lr_scheduler_state_dict": lr_scheduler.state_dict(),
             "loss": loss,
