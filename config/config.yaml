@@ -1,5 +1,6 @@
 experiment_name: "cifar10"
 epochs: 1000
+num_timesteps: 1000
 batch_size: 256
 data_dtype: float32
 debug: False
@@ -9,7 +10,7 @@ model:
   num_attention_heads: 12
   num_dit_blocks: 12
   num_context_classes: 10
-  num_timesteps: 1000
+  num_timesteps: ${num_timesteps}
   vae_name: "ostris/vae-kl-f8-d16"
   in_channels: 16
   dropout: 0.0
@@ -22,7 +23,10 @@ trainer:
   keep_n_checkpoints: 3
   # Check all classes
   validation_context: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-  
+noise_scheduler:
+  type: "cosine"
+  num_timesteps: ${num_timesteps}
+
   # This avoids Hydra from logging runs
 hydra:  
   output_subdir: null  

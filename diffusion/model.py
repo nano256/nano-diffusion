@@ -10,32 +10,32 @@ from diffusion.utils import (
 
 
 class NanoDiffusionModel(nn.Module):
-    def __init__(self, model_config):
+    def __init__(self, config):
         super().__init__()
-        self.model_config = model_config
-        self.patch_embedding = PatchEmbedding(**model_config)
-        self.time_embedding = TimeEmbedding(**model_config)
-        self.adaln_single = AdaLNSingle(**model_config)
-        if model_config.num_context_classes:
+        self.config = config
+        self.patch_embedding = PatchEmbedding(**config)
+        self.time_embedding = TimeEmbedding(**config)
+        self.adaln_single = AdaLNSingle(**config)
+        if config.num_context_classes:
             self.context_embedding = nn.Embedding(
-                num_embeddings=model_config.num_context_classes,
-                embedding_dim=model_config.hidden_dim,
-                device=model_config.device,
+                num_embeddings=config.num_context_classes,
+                embedding_dim=config.hidden_dim,
+                device=config.device,
             )
         else:
             raise ValueError("`num_context_classes` is not defined.")
 
         self.dit_blocks = nn.ModuleList()
-        for idx in range(model_config.num_dit_blocks):
+        for idx in range(config.num_dit_blocks):
             self.dit_blocks.append(
                 DiTBlock(
                     layer_idx=idx,
                     adaln_single=self.adaln_single,
-                    **model_config,
+                    **config,
                 )
             )
 
-        self.reshaper = Reshaper(**model_config)
+        self.reshaper = Reshaper(**config)
 
     def forward(self, x, timestep, context):
         time_embedding = self.time_embedding(timestep)

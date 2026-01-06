@@ -11,7 +11,19 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from diffusion.model import NanoDiffusionModel
 from diffusion.trainer import NanoDiffusionTrainer
-from diffusion.utils import CosineNoiseScheduler, get_available_device, slugify
+from diffusion.utils import (
+    CosineNoiseScheduler,
+    LinearNoiseScheduler,
+    SigmoidNoiseScheduler,
+    get_available_device,
+    slugify,
+)
+
+SCHEDULER_REGISTRY = {
+    "linear": LinearNoiseScheduler,
+    "cosine": CosineNoiseScheduler,
+    "sigmoid": SigmoidNoiseScheduler,
+}
 
 
 def load_cifar10_latents(data_path):
@@ -89,8 +101,8 @@ def train(cfg):
 
     model = NanoDiffusionModel(cfg.model).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
-
-    noise_scheduler = CosineNoiseScheduler(num_timesteps=1000)
+    noise_scheduler_type = SCHEDULER_REGISTRY[cfg.noise_scheduler.type]
+    noise_scheduler = noise_scheduler_type(**cfg.noise_scheduler)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 

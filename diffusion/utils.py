@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 
 import torch
 import torch.nn.functional as F
+from omegaconf import OmegaConf
 from PIL import Image
 from torch import nn
 
@@ -344,20 +345,11 @@ class AbstractNoiseScheduler(nn.Module, ABC):
     Abstract class for noise schedules implementing the forward diffusion process.
     The implementations are taken from http://arxiv.org/abs/2301.10972.
 
-        Args:
-            num_timesteps (torch.Tensor): Tensor of timesteps (int values)
-            clip_min (float): Minimal return value, for numeric stability purposes (defualt value: 1e-9)
-
         Shape:
             - Input: (batch_size, seq_len, hidden_dim), (batch_size, timesteps)
             - Output: (batch_size, seq_len, hidden_dim), (batch_size, seq_len, hidden_dim)
 
     """
-
-    def __init__(self, num_timesteps, clip_min=1e-9):
-        super().__init__()
-        self.num_timesteps = num_timesteps
-        self.clip_min = clip_min
 
     @abstractmethod
     def gamma_func(self, timesteps):
@@ -386,17 +378,21 @@ class LinearNoiseScheduler(AbstractNoiseScheduler):
 
     Generates a linear noise schedule for the forward diffusion process.
 
-        Args:
+        Config args:
             num_timesteps (torch.Tensor): Tensor of timesteps (int values)
             clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
     """
 
-    def __init__(self, num_timesteps, clip_min=1e-9, **kwargs):
-        super().__init__(num_timesteps, clip_min)
+    DEFAULT_CONFIG = {
+        "clip_min": 1e-9,
+    }
+
+    def __init__(self, config):
+        self.config = OmegaConf.merge(self.DEFAULT_CONFIG, config)
 
     def gamma_func(self, timesteps):
         # A gamma function that simply is 1-t, timesteps in [0, 1] (normalized)
-        return torch.clip(1 - timesteps, self.clip_min, 1.0)
+        return torch.clip(1 - timesteps, self.config.clip_min, 1.0)
 
 
 class CosineNoiseScheduler(AbstractNoiseScheduler):
@@ -404,7 +400,7 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
 
     Generates a cosine noise schedule for the forward diffusion process.
 
-        Args:
+        Config args:
             num_timesteps (torch.Tensor): Tensor of timesteps (int values)
             clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
             start (float): Interpolation start (default: 0.2)
@@ -412,18 +408,22 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
             tau (float): Scale factor (default: 2.0)
     """
 
-    def __init__(self, num_timesteps, start=0.2, end=1, tau=2, clip_min=1e-9, **kwargs):
-        super().__init__(num_timesteps, clip_min)
-        self.start = start
-        self.end = end
-        self.tau = tau
+    DEFAULT_CONFIG = {
+        "start": 0.2,
+        "end": 1.0,
+        "tau": 2.0,
+        "clip_min": 1e-9,
+    }
+
+    def __init__(self, config):
+        self.config = OmegaConf.merge(self.DEFAULT_CONFIG, config)
 
     def gamma_func(self, timesteps):
         device = timesteps.device
         # Make sure the parameters are on the same device like the timesteps
-        start = torch.tensor(self.start, device=device)
-        end = torch.tensor(self.end, device=device)
-        tau = torch.tensor(self.tau, device=device)
+        start = torch.tensor(self.config.start, device=device)
+        end = torch.tensor(self.config.end, device=device)
+        tau = torch.tensor(self.config.tau, device=device)
         # A gamma function based on cosine function, timesteps in [0, 1] (normalized)
         v_start = torch.cos(start * torch.pi / 2) ** (2 * tau)
         v_end = torch.cos(end * torch.pi / 2) ** (2 * tau)
@@ -431,7 +431,7 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
             2 * tau
         )
         output = (v_end - output) / (v_end - v_start)
-        return torch.clip(output, self.clip_min, 1.0)
+        return torch.clip(output, self.config.clip_min, 1.0)
 
 
 class SigmoidNoiseScheduler(AbstractNoiseScheduler):
@@ -439,7 +439,7 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
 
     Generates a sigmoid noise schedule for the forward diffusion process.
 
-        Args:
+        Config args:
             num_timesteps (torch.Tensor): Tensor of timesteps (int values)
             clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
             start (float): Interpolation start (default: 0.0)
@@ -447,26 +447,28 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
             tau (float): Scale factor (default: 0.7)
     """
 
-    def __init__(
-        self, num_timesteps, start=0.0, end=3.0, tau=0.7, clip_min=1e-9, **kwargs
-    ):
-        super().__init__(num_timesteps, clip_min)
-        self.start = start
-        self.end = end
-        self.tau = tau
+    DEFAULT_CONFIG = {
+        "start": 0.0,
+        "end": 3.0,
+        "tau": 0.7,
+        "clip_min": 1e-9,
+    }
+
+    def __init__(self, config):
+        self.config = OmegaConf.merge(self.DEFAULT_CONFIG, config)
 
     def gamma_func(self, timesteps):
         device = timesteps.device
         # Make sure the parameters are on the same device like the timesteps
-        start = torch.tensor(self.start, device=device)
-        end = torch.tensor(self.end, device=device)
-        tau = torch.tensor(self.tau, device=device)
+        start = torch.tensor(self.config.start, device=device)
+        end = torch.tensor(self.config.end, device=device)
+        tau = torch.tensor(self.config.tau, device=device)
         # A gamma function based on sigmoid function, timesteps in [0, 1] (normalized)
         v_start = F.sigmoid(start / tau)
         v_end = F.sigmoid(end / tau)
         output = F.sigmoid((timesteps * (end - start) + start) / tau)
         output = (v_end - output) / (v_end - v_start)
-        return torch.clip(output, self.clip_min, 1.0)
+        return torch.clip(output, self.config.clip_min, 1.0)
 
 
 class DDIMSampler:
