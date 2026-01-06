@@ -4,7 +4,7 @@ import mlflow
 import torch
 import torch.nn.functional as F
 
-from diffusion.utils import EulerSampler, decode_latents
+from diffusion.utils import DDIMSampler, decode_latents
 
 
 class NanoDiffusionTrainer:
@@ -195,7 +195,7 @@ class NanoDiffusionTrainer:
                 vae_device = next(self.vae.parameters()).device
                 self.model.eval()
                 with torch.no_grad():
-                    sampler = EulerSampler(
+                    sampler = DDIMSampler(
                         self.model, self.noise_scheduler, 1000, self.num_sampling_steps
                     )
                     noise = torch.randn(

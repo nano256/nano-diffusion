@@ -469,7 +469,7 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
         return torch.clip(output, self.clip_min, 1.0)
 
 
-class EulerSampler:
+class DDIMSampler:
     def __init__(
         self, model, noise_scheduler, num_timesteps, num_sampling_steps, **kwargs
     ):

@@ -1,5 +1,6 @@
 import os
 import sys
+
 import pytest
 import torch
 import torch.nn as nn
@@ -8,15 +9,14 @@ import torch.nn as nn
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from diffusion.utils import (
-    LinearNoiseScheduler,
     CosineNoiseScheduler,
+    DDIMSampler,
+    LinearNoiseScheduler,
     SigmoidNoiseScheduler,
-    EulerSampler,
 )
 
 
 class TestLinearNoiseScheduler:
-
     @pytest.fixture
     def scheduler(self):
         return LinearNoiseScheduler(num_timesteps=1000)
@@ -82,7 +82,6 @@ class TestLinearNoiseScheduler:
 
 
 class TestCosineNoiseScheduler:
-
     @pytest.fixture
     def scheduler(self):
         return CosineNoiseScheduler(num_timesteps=1000, start=0.2, end=1.0, tau=2.0)
@@ -126,7 +125,6 @@ class TestCosineNoiseScheduler:
 
 
 class TestSigmoidNoiseScheduler:
-
     @pytest.fixture
     def scheduler(self):
         return SigmoidNoiseScheduler(num_timesteps=1000, start=0.0, end=3.0, tau=0.7)
@@ -152,7 +150,7 @@ class TestSigmoidNoiseScheduler:
 
 
 class MockModel(nn.Module):
-    """Simple mock model for testing EulerSampler"""
+    """Simple mock model for testing DDIMSampler"""
 
     def __init__(self, output_shape):
         super().__init__()
@@ -163,13 +161,12 @@ class MockModel(nn.Module):
         return torch.randn_like(x)
 
 
-class TestEulerSampler:
-
+class TestDDIMSampler:
     @pytest.fixture
     def mock_components(self):
         model = MockModel((2, 3, 16, 16))
         scheduler = LinearNoiseScheduler(num_timesteps=1000)
-        sampler = EulerSampler(
+        sampler = DDIMSampler(
             model=model,
             noise_scheduler=scheduler,
             num_timesteps=1000,
@@ -257,7 +254,7 @@ class TestEulerSampler:
     def test_different_sampling_steps(self, num_sampling_steps):
         model = MockModel((1, 1, 8, 8))
         scheduler = LinearNoiseScheduler(num_timesteps=1000)
-        sampler = EulerSampler(model, scheduler, 1000, num_sampling_steps)
+        sampler = DDIMSampler(model, scheduler, 1000, num_sampling_steps)
 
         x_T = torch.randn(1, 1, 8, 8)
         context = torch.tensor([0])
@@ -310,7 +307,7 @@ class TestNoiseSchedulerIntegration:
         else:
             scheduler = scheduler_class(num_timesteps=100)
 
-        sampler = EulerSampler(model, scheduler, 100, 5)
+        sampler = DDIMSampler(model, scheduler, 100, 5)
 
         x_T = torch.randn(1, 1, 4, 4)
         context = torch.tensor([0])

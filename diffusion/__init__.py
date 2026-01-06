@@ -5,8 +5,8 @@ from .trainer import NanoDiffusionTrainer
 from .utils import (
     AdaLNSingle,
     CosineNoiseScheduler,
+    DDIMSampler,
     DiTBlock,
-    EulerSampler,
     LinearNoiseScheduler,
     PatchEmbedding,
     Reshaper,
@@ -25,5 +25,5 @@ __all__ = [
     "LinearNoiseScheduler",
     "CosineNoiseScheduler",
     "SigmoidNoiseScheduler",
-    "EulerSampler",
+    "DDIMSampler",
 ]
