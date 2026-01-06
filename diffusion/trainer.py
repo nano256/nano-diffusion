@@ -54,7 +54,7 @@ class NanoDiffusionTrainer:
         device = latents.device
         timesteps = torch.randint(
             0,
-            self.noise_scheduler.num_timesteps,
+            self.noise_scheduler.num_timesteps + 1,
             (latents.shape[0],),
             device=device,
         )
