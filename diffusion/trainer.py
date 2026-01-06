@@ -79,8 +79,6 @@ class NanoDiffusionTrainer:
         The reason this isn't done with MLflow only is because it doesn't support
         deleting once logged models which leads to a disk space overhead when
         saving regualrly to be able to retrieve aborted runs.
-        TODO: Make checkpoint_dir in accordance with the experiment and run names
-        TODO: Log checkpoint paths in MLflow
         """
         checkpoint = {
             "epoch": epoch,
