@@ -492,7 +492,8 @@ class EulerSampler:
             .long()
             .to(x_T.device)
         )
-        gamma_t = self.noise_scheduler.gamma_func(timesteps)
+        # The gamma function needs normalized timestepp
+        gamma_t = self.noise_scheduler.gamma_func(timesteps / self.num_timesteps)
 
         for idx in range(len(timesteps) - 1):
             # Predict the noise
