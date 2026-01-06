@@ -44,6 +44,7 @@ class NanoDiffusionTrainer:
 
         self.best_val_loss = float("inf")
         self.saved_checkpoints = []  # Track saved checkpoint paths
+        self.best_checkpoint = None
 
         # Create checkpoint directory
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -92,15 +93,18 @@ class NanoDiffusionTrainer:
 
         # Create checkpoint filename
         if is_best:
-            checkpoint_path = self.checkpoint_dir / "best_model.pt"
+            checkpoint_path = self.checkpoint_dir / f"best_model_epoch_{epoch:04d}.pt"
         else:
             checkpoint_path = self.checkpoint_dir / f"checkpoint_epoch_{epoch:04d}.pt"
 
         # Save checkpoint
         torch.save(checkpoint, checkpoint_path)
 
-        # Track regular checkpoints (not best model)
-        if not is_best:
+        if is_best:
+            if self.best_checkpoint is not None and self.best_checkpoint.exists():
+                self.best_checkpoint.unlink()
+            self.best_checkpoint = checkpoint_path
+        else:
             self.saved_checkpoints.append(checkpoint_path)
 
             # Remove old checkpoints if we exceed the limit
