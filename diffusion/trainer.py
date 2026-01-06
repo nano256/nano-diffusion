@@ -63,7 +63,14 @@ class NanoDiffusionTrainer:
             latents, timesteps, noise, return_noise=False
         )
         pred_noise = self.model(noised_latents, timesteps, context)
-        return self.loss_fn(pred_noise, noise)
+        loss = self.loss_fn(pred_noise, noise)
+
+        if torch.isnan(loss):
+            raise ValueError("Loss is NaN")
+        if torch.isinf(loss):
+            raise ValueError("Loss is inf")
+
+        return loss
 
     def save_checkpoint(self, epoch, optimizer, lr_scheduler, loss, is_best=False):
         """Save model checkpoint with optional cleanup of old checkpoints.
