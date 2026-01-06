@@ -1,7 +1,7 @@
 experiment_name: "cifar10_debug"
 epochs: 10
 batch_size: 256
-data_dtype: float16
+data_dtype: float32
 debug: True
 model:
   patch_size: 2
