@@ -5,6 +5,7 @@ import hydra
 import mlflow
 import torch
 from diffusers.models import AutoencoderKL
+from omegaconf import OmegaConf
 from torch.utils.data import DataLoader, TensorDataset
 
 sys.path.append(str(Path(__file__).parent.parent))
@@ -58,6 +59,8 @@ def create_dataloaders(
 
 @hydra.main(version_base=None, config_path="../config", config_name="config")
 def train(cfg):
+    # This resolves any variable-based config and avoids later problems when copying the config
+    OmegaConf.resolve(cfg)
     device = (
         get_available_device()
         if cfg.model.device is None
