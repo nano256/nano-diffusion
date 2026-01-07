@@ -351,6 +351,13 @@ class AbstractNoiseScheduler(nn.Module, ABC):
 
     """
 
+    DEFAULT_CONFIG = {
+        "clip_min": 1e-9,
+    }
+
+    def __init__(self, config):
+        self.config = OmegaConf.merge(self.DEFAULT_CONFIG, config)
+
     @abstractmethod
     def gamma_func(self, timesteps):
         pass
@@ -361,7 +368,7 @@ class AbstractNoiseScheduler(nn.Module, ABC):
         # so the element-wise operation on the latents work.
         batched_timesteps = timesteps.reshape(-1, 1, 1, 1).float()
         # Normalize the timesteps
-        batched_timesteps = batched_timesteps / self.num_timesteps
+        batched_timesteps = batched_timesteps / self.config.num_timesteps
         gamma = self.gamma_func(batched_timesteps)
 
         if noise is None:
@@ -382,13 +389,6 @@ class LinearNoiseScheduler(AbstractNoiseScheduler):
             num_timesteps (torch.Tensor): Tensor of timesteps (int values)
             clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
     """
-
-    DEFAULT_CONFIG = {
-        "clip_min": 1e-9,
-    }
-
-    def __init__(self, config):
-        self.config = OmegaConf.merge(self.DEFAULT_CONFIG, config)
 
     def gamma_func(self, timesteps):
         # A gamma function that simply is 1-t, timesteps in [0, 1] (normalized)
@@ -414,9 +414,6 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
         "tau": 2.0,
         "clip_min": 1e-9,
     }
-
-    def __init__(self, config):
-        self.config = OmegaConf.merge(self.DEFAULT_CONFIG, config)
 
     def gamma_func(self, timesteps):
         device = timesteps.device
@@ -453,9 +450,6 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
         "tau": 0.7,
         "clip_min": 1e-9,
     }
-
-    def __init__(self, config):
-        self.config = OmegaConf.merge(self.DEFAULT_CONFIG, config)
 
     def gamma_func(self, timesteps):
         device = timesteps.device
