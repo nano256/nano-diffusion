@@ -102,7 +102,7 @@ def train(cfg):
     model = NanoDiffusionModel(cfg.model).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
     noise_scheduler_type = SCHEDULER_REGISTRY[cfg.noise_scheduler.type]
-    noise_scheduler = noise_scheduler_type(**cfg.noise_scheduler)
+    noise_scheduler = noise_scheduler_type(cfg.noise_scheduler)
     optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
 
