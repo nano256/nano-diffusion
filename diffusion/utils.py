@@ -356,6 +356,7 @@ class AbstractNoiseScheduler(nn.Module, ABC):
     }
 
     def __init__(self, config):
+        super().__init__()
         self.config = OmegaConf.merge(self.DEFAULT_CONFIG, config)
 
     @abstractmethod
