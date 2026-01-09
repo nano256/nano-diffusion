@@ -9,7 +9,7 @@ runs/
 mlruns/
 mlflow.db
 mlflow.db-journal
-checkpoints/
+models/
 
 # IDE and AI helper settings
 .vscode
