@@ -1,5 +1,6 @@
 diffusers
 hydra-core
+nbstripout
 Pillow
 tqdm
 typer
