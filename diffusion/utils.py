@@ -468,7 +468,12 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
 
 class DDIMSampler:
     def __init__(
-        self, model, noise_scheduler, num_timesteps, num_sampling_steps, **kwargs
+        self,
+        model,
+        noise_scheduler,
+        num_timesteps,
+        num_sampling_steps,
+        **kwargs,
     ):
         self.model = model
         self.noise_scheduler = noise_scheduler
@@ -479,7 +484,8 @@ class DDIMSampler:
         # Euler forward step to predict x_0
         return (x_t - torch.sqrt(1 - gamma_t) * noise_pred) / torch.sqrt(gamma_t)
 
-    def sample(self, x_T, context, seed=None):
+    def sample(self, x_T, context, return_intermediates=False, seed=None):
+        intermediates = []
         # x_T is assumed to be full noise. It also determines the shape of the generated image.
         x_t = x_T
         timesteps = (
@@ -502,11 +508,16 @@ class DDIMSampler:
                 torch.sqrt(gamma_t[idx + 1]) * x_0_pred
                 + torch.sqrt(1 - gamma_t[idx + 1]) * noise_pred
             )
+            if return_intermediates:
+                intermediates.append(x_t.detach().clone())
 
-        # Predict the last noise step...
         noise_pred = self.model(x_t, timesteps[-1], context)
-        # ...and return the final prediction.
-        return self.step(x_t, noise_pred, gamma_t[-1])
+        x_0 = self.step(x_t, noise_pred, gamma_t[-1])
+
+        if return_intermediates:
+            return x_0, intermediates
+
+        return x_0
 
 
 def slugify(value, allow_unicode=False):
