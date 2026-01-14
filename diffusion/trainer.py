@@ -27,6 +27,7 @@ class NanoDiffusionTrainer:
         keep_n_checkpoints: int = 3,
         vae=None,
         validation_context: list[int] | None = None,
+        fixed_validation_noise: bool = False,
     ):
         self.model = model
         self.noise_scheduler = noise_scheduler
@@ -41,6 +42,7 @@ class NanoDiffusionTrainer:
         self.validation_context = (
             None if validation_context is None else torch.tensor(validation_context)
         )
+        self.fixed_validation_noise = fixed_validation_noise
 
         self.best_val_loss = float("inf")
         self.saved_checkpoints = []  # Track saved checkpoint paths
@@ -141,6 +143,8 @@ class NanoDiffusionTrainer:
         val_dataloader=None,
     ):
         latent_shape = None
+        validation_noise = None
+
         for epoch in range(epochs):
             num_prev_batches = epoch * len(train_dataloader)
             for batch_idx, batch in enumerate(train_dataloader):
@@ -200,11 +204,16 @@ class NanoDiffusionTrainer:
                     sampler = DDIMSampler(
                         self.model, self.noise_scheduler, 1000, self.num_sampling_steps
                     )
-                    noise = torch.randn(
-                        self.validation_context.shape[0], *latent_shape
-                    ).to(model_device)
+                    # Generates new initial noise every generation if
+                    # fixed_validation_noise is False, otherwise keeps the
+                    # same for every generation throughout the training run.
+                    if validation_noise is None or self.fixed_validation_noise is False:
+                        validation_noise = torch.randn(
+                            self.validation_context.shape[0], *latent_shape
+                        ).to(model_device)
+
                     latents = sampler.sample(
-                        noise, self.validation_context.to(model_device)
+                        validation_noise, self.validation_context.to(model_device)
                     ).to(vae_device)
 
                     images = decode_latents(latents, self.vae)
