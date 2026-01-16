@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch import nn
+from torch import Tensor, nn
 
 
 class PatchEmbedding(nn.Module):
@@ -19,7 +19,14 @@ class PatchEmbedding(nn.Module):
         - Output: (batch_size, seq_len, hidden_dim)
     """
 
-    def __init__(self, patch_size, hidden_dim, in_channels, device, **kwargs):
+    def __init__(
+        self,
+        patch_size: int,
+        hidden_dim: int,
+        in_channels: int,
+        device: torch.device | str,
+        **kwargs,
+    ):
         super().__init__()
         self.patch_size = patch_size
         self.hidden_dim = hidden_dim
@@ -28,7 +35,7 @@ class PatchEmbedding(nn.Module):
             in_channels * patch_size**2, hidden_dim, device=device
         )
 
-    def patchify(self, x):
+    def patchify(self, x: Tensor):
         """Convert 2D images into sequences of patches.
 
         Divides input images into non-overlapping patches.
@@ -71,7 +78,7 @@ class PatchEmbedding(nn.Module):
         y_pos = torch.repeat_interleave(torch.arange(y_size, device=device), x_size)
         return patches, x_pos, y_pos
 
-    def add_positional_encodings(self, x, x_pos, y_pos):
+    def add_positional_encodings(self, x: Tensor, x_pos: Tensor, y_pos: Tensor):
         device = x.device
         num_patches = torch.numel(x_pos)
         # Number of dimensions of the 2D sinusoidal encoding
@@ -99,7 +106,7 @@ class PatchEmbedding(nn.Module):
         )
         return x + pos_encodings
 
-    def forward(self, x, patch_pos=False):
+    def forward(self, x: Tensor, patch_pos: bool = False):
         x, x_pos, y_pos = self.patchify(x)
         x = self.lin_projection(x)
         x = self.add_positional_encodings(x, x_pos, y_pos)
@@ -110,7 +117,9 @@ class PatchEmbedding(nn.Module):
 
 
 class TimeEmbedding(nn.Module):
-    def __init__(self, num_timesteps, hidden_dim, device, **kwargs):
+    def __init__(
+        self, num_timesteps: int, hidden_dim: int, device: torch.device | str, **kwargs
+    ):
         super().__init__()
         self.num_timesteps = num_timesteps
         self.hidden_dim = hidden_dim
@@ -120,7 +129,7 @@ class TimeEmbedding(nn.Module):
         # Register omega so it moves device with the module
         self.register_buffer("omega", 1 / 10 ** (4 * freq_idx / half_hidden_dim))
 
-    def forward(self, timesteps):
+    def forward(self, timesteps: Tensor):
         # make sure that when several timesteps are given that they have a shape of (batch, 1)
         batched_timesteps = timesteps.reshape(-1, 1)
         sin_encodings = torch.sin(batched_timesteps * self.omega)
@@ -146,7 +155,9 @@ class AdaLNSingle(nn.Module):
             - Output: (batch_size, 6 * hidden_dim)
     """
 
-    def __init__(self, hidden_dim, num_dit_blocks, device, **kwargs):
+    def __init__(
+        self, hidden_dim: int, num_dit_blocks: int, device: torch.device | str, **kwargs
+    ):
         super().__init__()
         # TODO: Implement AdaLN zero initialization
         self.time_mlp = nn.Sequential(
@@ -160,12 +171,12 @@ class AdaLNSingle(nn.Module):
             torch.zeros(num_dit_blocks, 6 * hidden_dim, device=device)
         )
 
-    def forward(self, time_emb):
+    def forward(self, time_emb: Tensor):
         """Single forward pass - compute global parameters"""
         global_params = self.time_mlp(time_emb)  # [batch, 6*hidden_dim]
         return global_params
 
-    def get_layer_params(self, global_params, layer_idx):
+    def get_layer_params(self, global_params: Tensor, layer_idx: int):
         """Get parameters for specific layer"""
         layer_emb = self.layer_embeddings[layer_idx]  # [6*hidden_dim]
         layer_params = global_params + layer_emb  # [batch, 6*hidden_dim]
@@ -173,7 +184,12 @@ class AdaLNSingle(nn.Module):
         return torch.chunk(layer_params, 6, dim=-1)
 
 
-def create_mlp(layer_dims, activation=nn.SiLU, final_activation=None, device="cpu"):
+def create_mlp(
+    layer_dims: list[int],
+    device: torch.device | str,
+    activation: nn.Module = nn.SiLU,
+    final_activation: nn.Module | None = None,
+):
     """
     Create MLP from list of layer dimensions
 
@@ -196,15 +212,6 @@ def create_mlp(layer_dims, activation=nn.SiLU, final_activation=None, device="cp
     return nn.Sequential(*layers).to(device=device)
 
 
-def create_dit_block_config():
-    """Config creator for DiTBlock"""
-    return {
-        "hidden_dim": 256,
-        "num_attn_heads": 8,
-        "dropout": None,
-    }
-
-
 class DiTBlock(nn.Module):
     """Diffusion transformer (DiT) block
 
@@ -224,12 +231,12 @@ class DiTBlock(nn.Module):
 
     def __init__(
         self,
-        layer_idx,
-        adaln_single,
-        hidden_dim,
-        num_attention_heads,
-        dropout,
-        device,
+        layer_idx: int,
+        adaln_single: nn.Module,
+        hidden_dim: int,
+        num_attention_heads: int,
+        dropout: float,
+        device: torch.device | str,
         **kwargs,
     ):
         super().__init__()
@@ -251,7 +258,9 @@ class DiTBlock(nn.Module):
             [hidden_dim, hidden_dim * 4, hidden_dim], nn.SiLU, device=device
         )
 
-    def scale_and_shift(self, x, scale_factor, bias=None):
+    def scale_and_shift(
+        self, x: Tensor, scale_factor: Tensor, bias: Tensor | None = None
+    ):
         # Normalize the embeddings before scaling and shifting
         x1 = F.layer_norm(x, [self.hidden_dim])
         # Transpose batch and seq since all embeddings in the same
@@ -307,7 +316,14 @@ class Reshaper(nn.Module):
             - Output: (batch_size, channels, height, width)
     """
 
-    def __init__(self, patch_size, hidden_dim, in_channels, device, **kwargs):
+    def __init__(
+        self,
+        patch_size: int,
+        hidden_dim: int,
+        in_channels: int,
+        device: torch.device | None,
+        **kwargs,
+    ):
         super().__init__()
 
         self.patch_size = patch_size
@@ -317,7 +333,7 @@ class Reshaper(nn.Module):
             hidden_dim, in_channels * patch_size**2, device=device
         )
 
-    def forward(self, x, x_pos, y_pos):
+    def forward(self, x: Tensor, x_pos: Tensor, y_pos: Tensor):
         width = (torch.max(x_pos) + 1) * self.patch_size
         height = (torch.max(y_pos) + 1) * self.patch_size
         x1 = F.layer_norm(x, [self.hidden_dim])
