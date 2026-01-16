@@ -4,7 +4,8 @@ import mlflow
 import torch
 import torch.nn.functional as F
 
-from diffusion.utils import DDIMSampler, decode_latents
+from diffusion.samplers import DDIMSampler
+from diffusion.utils import decode_latents
 
 
 class NanoDiffusionTrainer:

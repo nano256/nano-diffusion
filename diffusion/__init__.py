@@ -1,18 +1,20 @@
 """Nano Diffusion - Educational diffusion model implementation."""
 
 from .model import NanoDiffusionModel
-from .trainer import NanoDiffusionTrainer
-from .utils import (
+from .modules import (
     AdaLNSingle,
-    CosineNoiseScheduler,
-    DDIMSampler,
     DiTBlock,
-    LinearNoiseScheduler,
     PatchEmbedding,
     Reshaper,
-    SigmoidNoiseScheduler,
     TimeEmbedding,
 )
+from .noise_schedulers import (
+    CosineNoiseScheduler,
+    LinearNoiseScheduler,
+    SigmoidNoiseScheduler,
+)
+from .samplers import DDIMSampler
+from .trainer import NanoDiffusionTrainer
 
 __all__ = [
     "NanoDiffusionModel",

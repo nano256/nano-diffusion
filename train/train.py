@@ -11,14 +11,13 @@ from torch.utils.data import DataLoader, TensorDataset
 sys.path.append(str(Path(__file__).parent.parent))
 
 from diffusion.model import NanoDiffusionModel
-from diffusion.trainer import NanoDiffusionTrainer
-from diffusion.utils import (
+from diffusion.noise_schedulers import (
     CosineNoiseScheduler,
     LinearNoiseScheduler,
     SigmoidNoiseScheduler,
-    get_available_device,
-    slugify,
 )
+from diffusion.trainer import NanoDiffusionTrainer
+from diffusion.utils import get_available_device, slugify
 
 SCHEDULER_REGISTRY = {
     "linear": LinearNoiseScheduler,

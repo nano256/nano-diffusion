@@ -1,6 +1,6 @@
 from torch import nn
 
-from diffusion.utils import (
+from diffusion.modules import (
     AdaLNSingle,
     DiTBlock,
     PatchEmbedding,

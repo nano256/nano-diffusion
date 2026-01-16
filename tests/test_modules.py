@@ -1,5 +1,6 @@
 import os
 import sys
+
 import pytest
 import torch
 import torch.nn as nn
@@ -7,19 +8,20 @@ import torch.nn as nn
 # Add the project root to Python path so that I can import functions from other folders
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from diffusion.utils import (
-    PatchEmbedding,
-    TimeEmbedding,
+from diffusion.modules import (
     AdaLNSingle,
-    create_mlp,
-    create_dit_block_config,
     DiTBlock,
+    PatchEmbedding,
     Reshaper,
+    TimeEmbedding,
+)
+from diffusion.utils import (
+    create_dit_block_config,
+    create_mlp,
 )
 
 
 class TestPatchEmbedding:
-
     def test_init(self):
         patch_embed = PatchEmbedding(patch_size=4, hidden_dim=256, in_channels=3)
         assert patch_embed.patch_size == 4
@@ -93,7 +95,6 @@ class TestPatchEmbedding:
 
 
 class TestTimeEmbedding:
-
     def test_init_parameters(self):
         time_embed = TimeEmbedding(num_timesteps=1000, hidden_dim=256)
         assert time_embed.num_timesteps == 1000
@@ -147,7 +148,6 @@ class TestTimeEmbedding:
 
 
 class TestAdaLNSingle:
-
     def test_init_structure(self):
         adaln = AdaLNSingle(hidden_dim=256, num_layers=12)
 
@@ -195,7 +195,6 @@ class TestAdaLNSingle:
 
 
 class TestCreateMLP:
-
     def test_basic_structure(self):
         mlp = create_mlp([64, 128, 256, 32])
 
@@ -247,7 +246,6 @@ class TestCreateMLP:
 
 
 class TestCreateDiTBlockConfig:
-
     def test_config_immutability(self):
         """Test that returned config is not shared between calls"""
         config1 = create_dit_block_config()
@@ -258,7 +256,6 @@ class TestCreateDiTBlockConfig:
 
 
 class TestDiTBlock:
-
     @pytest.fixture
     def dit_components(self):
         adaln = AdaLNSingle(hidden_dim=256, num_layers=1)
@@ -386,7 +383,6 @@ class TestDiTBlock:
 
 
 class TestReshaper:
-
     def test_initialization(self):
         reshaper = Reshaper(patch_size=4, hidden_dim=256, in_channels=3)
 
