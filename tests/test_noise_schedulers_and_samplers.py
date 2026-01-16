@@ -8,12 +8,12 @@ import torch.nn as nn
 # Add the project root to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from diffusion.utils import (
+from diffusion.noise_schedulers import (
     CosineNoiseScheduler,
-    DDIMSampler,
     LinearNoiseScheduler,
     SigmoidNoiseScheduler,
 )
+from diffusion.samplers import DDIMSampler
 
 
 class TestLinearNoiseScheduler:

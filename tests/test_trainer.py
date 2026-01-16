@@ -1,15 +1,15 @@
 import os
 import sys
+
 import pytest
 import torch
 import torch.nn as nn
-from unittest.mock import Mock
 
 # Add the project root to Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+from diffusion.noise_schedulers import LinearNoiseScheduler
 from diffusion.trainer import NanoDiffusionTrainer
-from diffusion.utils import LinearNoiseScheduler
 
 
 class MockModel(nn.Module):
@@ -73,7 +73,6 @@ class MockLRScheduler:
 
 
 class TestNanoDiffusionTrainer:
-
     @pytest.fixture
     def trainer_components(self):
         model = MockModel()
