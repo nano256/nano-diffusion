@@ -1,13 +1,16 @@
 import torch
+from torch import Tensor, nn
+
+from diffusion.noise_schedulers import AbstractNoiseScheduler
 
 
 class DDIMSampler:
     def __init__(
         self,
-        model,
-        noise_scheduler,
-        num_timesteps,
-        num_sampling_steps,
+        model: nn.Module,
+        noise_scheduler: AbstractNoiseScheduler,
+        num_timesteps: int,
+        num_sampling_steps: int,
         **kwargs,
     ):
         self.model = model
@@ -15,11 +18,17 @@ class DDIMSampler:
         self.num_timesteps = num_timesteps
         self.num_sampling_steps = num_sampling_steps
 
-    def step(self, x_t, noise_pred, gamma_t):
+    def step(self, x_t: Tensor, noise_pred: Tensor, gamma_t: Tensor):
         # Euler forward step to predict x_0
         return (x_t - torch.sqrt(1 - gamma_t) * noise_pred) / torch.sqrt(gamma_t)
 
-    def sample(self, x_T, context, return_intermediates=False, seed=None):
+    def sample(
+        self,
+        x_T: Tensor,
+        context: Tensor,
+        return_intermediates: bool = False,
+        seed: int = None,
+    ):
         intermediates = []
         # x_T is assumed to be full noise. It also determines the shape of the generated image.
         x_t = x_T
