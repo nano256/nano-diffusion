@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 
 import torch
 import torch.nn.functional as F
-from omegaconf import OmegaConf
-from torch import nn
+from omegaconf import DictConfig, OmegaConf
+from torch import Tensor, nn
 
 
 class AbstractNoiseScheduler(nn.Module, ABC):
@@ -22,15 +22,21 @@ class AbstractNoiseScheduler(nn.Module, ABC):
         "clip_min": 1e-9,
     }
 
-    def __init__(self, config):
+    def __init__(self, config: DictConfig):
         super().__init__()
         self.config = OmegaConf.merge(self.DEFAULT_CONFIG, config)
 
     @abstractmethod
-    def gamma_func(self, timesteps):
+    def gamma_func(self, timesteps: Tensor):
         pass
 
-    def forward(self, x, timesteps, noise=None, return_noise=True):
+    def forward(
+        self,
+        x: Tensor,
+        timesteps: Tensor,
+        noise: Tensor | None = None,
+        return_noise: bool = True,
+    ):
         device = x.device
         # Make sure that the timesteps are broadcasted correctly
         # so the element-wise operation on the latents work.
@@ -83,7 +89,7 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
         "clip_min": 1e-9,
     }
 
-    def gamma_func(self, timesteps):
+    def gamma_func(self, timesteps: Tensor):
         device = timesteps.device
         # Make sure the parameters are on the same device like the timesteps
         start = torch.tensor(self.config.start, device=device)
@@ -119,7 +125,7 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
         "clip_min": 1e-9,
     }
 
-    def gamma_func(self, timesteps):
+    def gamma_func(self, timesteps: Tensor):
         device = timesteps.device
         # Make sure the parameters are on the same device like the timesteps
         start = torch.tensor(self.config.start, device=device)
