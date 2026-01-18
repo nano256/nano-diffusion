@@ -1,4 +1,5 @@
-from torch import nn
+from omegaconf import DictConfig
+from torch import Tensor, nn
 
 from diffusion.modules import (
     AdaLNSingle,
@@ -10,7 +11,7 @@ from diffusion.modules import (
 
 
 class NanoDiffusionModel(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config: DictConfig):
         super().__init__()
         self.config = config
         self.patch_embedding = PatchEmbedding(**config)
@@ -37,7 +38,7 @@ class NanoDiffusionModel(nn.Module):
 
         self.reshaper = Reshaper(**config)
 
-    def forward(self, x, timestep, context):
+    def forward(self, x: Tensor, timestep: Tensor, context: Tensor):
         time_embedding = self.time_embedding(timestep)
         global_adaln_params = self.adaln_single(time_embedding)
         context_embedding = self.context_embedding(context).unsqueeze(1)
