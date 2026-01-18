@@ -3,7 +3,12 @@ from pathlib import Path
 import mlflow
 import torch
 import torch.nn.functional as F
+from torch import Tensor, nn
+from torch.optim.lr_scheduler import LRScheduler
+from torch.optim.optimizer import Optimizer
+from torch.utils.data import DataLoader
 
+from diffusion.noise_schedulers import AbstractNoiseScheduler
 from diffusion.samplers import DDIMSampler
 from diffusion.utils import decode_latents
 
@@ -18,8 +23,8 @@ class NanoDiffusionTrainer:
 
     def __init__(
         self,
-        model,
-        noise_scheduler,
+        model: nn.Module,
+        noise_scheduler: AbstractNoiseScheduler,
         checkpoint_dir: str | Path,
         num_sampling_steps: int,
         loss_fn: str = "mse_loss",
@@ -52,7 +57,7 @@ class NanoDiffusionTrainer:
         # Create checkpoint directory
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    def compute_loss(self, batch):
+    def compute_loss(self, batch: tuple[Tensor]):
         latents, context = batch
         latents = latents.to(dtype=torch.float32)
         device = latents.device
@@ -76,7 +81,14 @@ class NanoDiffusionTrainer:
 
         return loss
 
-    def save_checkpoint(self, epoch, optimizer, lr_scheduler, loss, is_best=False):
+    def save_checkpoint(
+        self,
+        epoch: int,
+        optimizer: Optimizer,
+        lr_scheduler: LRScheduler,
+        loss: Tensor,
+        is_best: bool = False,
+    ):
         """Save model checkpoint with optional cleanup of old checkpoints.
 
         The reason this isn't done with MLflow only is because it doesn't support
@@ -112,7 +124,12 @@ class NanoDiffusionTrainer:
 
         return checkpoint_path
 
-    def load_checkpoint(self, checkpoint_path, optimizer=None, lr_scheduler=None):
+    def load_checkpoint(
+        self,
+        checkpoint_path: Path | str,
+        optimizer: Optimizer | None = None,
+        lr_scheduler: LRScheduler | None = None,
+    ):
         """Load model checkpoint"""
         checkpoint_path = Path(checkpoint_path)
         if not checkpoint_path.exists():
@@ -137,11 +154,11 @@ class NanoDiffusionTrainer:
 
     def train(
         self,
-        epochs,
-        optimizer,
-        lr_scheduler,
-        train_dataloader,
-        val_dataloader=None,
+        epochs: int,
+        optimizer: Optimizer,
+        lr_scheduler: LRScheduler,
+        train_dataloader: DataLoader,
+        val_dataloader: DataLoader | None = None,
     ):
         latent_shape = None
         validation_noise = None
