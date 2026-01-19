@@ -9,6 +9,7 @@ model:
   hidden_dim: 384
   num_attention_heads: 6
   num_dit_blocks: 12
+  normalization_layer: "RMSNorm"
   num_context_classes: 10
   num_timesteps: ${num_timesteps}
   vae_name: "ostris/vae-kl-f8-d16"

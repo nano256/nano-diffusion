@@ -250,7 +250,10 @@ class DiTBlock(nn.Module):
             layer_idx: Layer index.
             adaln_single: Globally shared AdaLN module.
             hidden_dim: Embedding size.
+            num_attention_heads: Number of attentions head used.
+            normalization_layer: Applied PyTorch normalization method, e.g. "RMSNorm".
             dropout: Dropout rate.
+            device: Device to place the module on.
     """
 
     def __init__(
@@ -259,7 +262,8 @@ class DiTBlock(nn.Module):
         adaln_single: nn.Module,
         hidden_dim: int,
         num_attention_heads: int,
-        dropout: float,
+        normalization_layer: str = "LayerNorm",
+        dropout: float = 0.0,
         device: torch.device | str | None = None,
         **kwargs,
     ):
@@ -270,6 +274,10 @@ class DiTBlock(nn.Module):
         self.adaln_single = adaln_single
         self.dropout = dropout
         self.num_attention_heads = num_attention_heads
+
+        self.normalization_layer = getattr(nn, normalization_layer)(
+            normalized_shape=[self.hidden_dim]
+        ).to(device=device)
 
         self.multi_head_attn = nn.MultiheadAttention(
             hidden_dim,
@@ -300,7 +308,7 @@ class DiTBlock(nn.Module):
             Scaled and shifted tensor, shape (batch, seq_len, hidden_dim)
         """
         # Normalize the embeddings before scaling and shifting
-        x1 = F.layer_norm(x, [self.hidden_dim])
+        x1 = self.normalization_layer(x)
         # Transpose batch and seq since all embeddings in the same
         # batch receive the same scale and shift
         x1 = x1.transpose(0, 1)
@@ -356,6 +364,7 @@ class Reshaper(nn.Module):
             patch_size: Patch size parameter.
             hidden_dim: Embedding dimension for the patches.
             in_channels: Number of channels of the input images.
+            normalization_layer: Applied PyTorch normalization method, e.g. "RMSNorm".
             device: Device to place the module on.
     """
 
@@ -364,13 +373,18 @@ class Reshaper(nn.Module):
         patch_size: int,
         hidden_dim: int,
         in_channels: int,
-        device: torch.device | None,
+        normalization_layer: str = "LayerNorm",
+        device: torch.device | None = None,
         **kwargs,
     ):
         super().__init__()
 
         self.patch_size = patch_size
         self.hidden_dim = hidden_dim
+
+        self.normalization_layer = getattr(nn, normalization_layer)(
+            normalized_shape=[self.hidden_dim]
+        ).to(device=device)
 
         self.lin_projection = nn.Linear(
             hidden_dim, in_channels * patch_size**2, device=device
@@ -389,7 +403,7 @@ class Reshaper(nn.Module):
         """
         width = (torch.max(x_pos) + 1) * self.patch_size
         height = (torch.max(y_pos) + 1) * self.patch_size
-        x1 = F.layer_norm(x, [self.hidden_dim])
+        x1 = self.normalization_layer(x)
         # Get the embeddings back to their original dimensions
         x1 = self.lin_projection(x1)
         # Transpose so that we have the dim order (batch, embedding, seq)
