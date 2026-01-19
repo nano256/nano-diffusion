@@ -285,6 +285,20 @@ class DiTBlock(nn.Module):
     def scale_and_shift(
         self, x: Tensor, scale_factor: Tensor, bias: Tensor | None = None
     ):
+        """Apply adaptive layer normalization with scale and shift.
+
+        Normalizes the input, then applies learned scale and shift parameters
+        from the timestep conditioning (AdaLN). This allows the model to modulate
+        features based on the current diffusion timestep.
+
+        Args:
+            x: Input tensor, shape (batch, seq_len, hidden_dim)
+            scale_factor: Scale parameter from AdaLN, shape (batch, hidden_dim)
+            bias: Optional shift parameter from AdaLN, shape (batch, hidden_dim)
+
+        Returns:
+            Scaled and shifted tensor, shape (batch, seq_len, hidden_dim)
+        """
         # Normalize the embeddings before scaling and shifting
         x1 = F.layer_norm(x, [self.hidden_dim])
         # Transpose batch and seq since all embeddings in the same

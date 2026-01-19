@@ -31,6 +31,8 @@ class NanoDiffusionTrainer:
         keep_n_checkpoints: Number of recent checkpoints to keep
         vae: Optional VAE for decoding latents to images during validation
         validation_context: Optional list of class labels to generate during validation
+        fixed_validation_noise: If True, uses the same noise seed across all validation
+            epochs for consistent sample comparison.
 
     """
 

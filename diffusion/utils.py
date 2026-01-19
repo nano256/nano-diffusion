@@ -131,10 +131,21 @@ def decode_latents(latents: Tensor, vae):
     ]
 
 
-# Due to problems with the DataLoaders on Windows and MacOS, we can't use
-# lambda functions in the dataset transform, hence the custom classes.
-# https://stackoverflow.com/questions/70608810/pytorch-cant-pickle-lambda
 class TensorDeviceConvertor:
+    """Convert tensors to a specific device and dtype.
+
+    Utility class for PyTorch dataset transforms. Used to move tensors
+    to the correct device (CPU/GPU) and convert to the desired dtype.
+
+    Required because lambda functions can't be pickled for DataLoader
+    multiprocessing on Windows and macOS:
+    https://stackoverflow.com/questions/70608810/pytorch-cant-pickle-lambda
+
+    Args:
+        device: Target device
+        dtype: Target data type
+    """
+
     def __init__(
         self, device: torch.device | None = None, dtype: torch.dtype | None = None
     ):
@@ -145,8 +156,16 @@ class TensorDeviceConvertor:
         return tensor.to(device=self.device, dtype=self.dtype)
 
 
-# The CIFAR images already are already normalized to [0,1], so we only do
-# the transform to [-1,1].
 class TensorCifarNormalizer:
+    """Normalize CIFAR-10 images from [0, 1] to [-1, 1].
+
+    CIFAR-10 images are normalized to [0, 1] by default. This transform
+    converts them to [-1, 1] range, which is standard for diffusion models
+    and matches the VAE's expected input range.
+
+    Cannot use lambda functions due to DataLoader multiprocessing
+    limitations on Windows and macOS (lambdas can't be pickled).
+    """
+
     def __call__(self, tensor: Tensor):
         return 2.0 * tensor - 1.0  # [0,1] -> [-1,1]
