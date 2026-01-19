@@ -3,9 +3,10 @@ import unicodedata
 
 import torch
 from PIL import Image
+from torch import Tensor
 
 
-def slugify(value, allow_unicode=False):
+def slugify(value: str, allow_unicode: bool = False):
     """
     Taken from https://github.com/django/django/blob/master/django/utils/text.py
     Convert to ASCII if 'allow_unicode' is False. Convert spaces or repeated
@@ -35,7 +36,7 @@ def get_available_device():
         return torch.device("cpu")
 
 
-def decode_latents(latents, vae):
+def decode_latents(latents: Tensor, vae):
     vae.eval()
     with torch.no_grad():
         # Unscale before decoding
@@ -56,7 +57,9 @@ def decode_latents(latents, vae):
 # lambda functions in the dataset transform, hence the custom classes.
 # https://stackoverflow.com/questions/70608810/pytorch-cant-pickle-lambda
 class TensorDeviceConvertor:
-    def __init__(self, device=None, dtype=None):
+    def __init__(
+        self, device: torch.device | None = None, dtype: torch.dtype | None = None
+    ):
         self.device = device
         self.dtype = dtype
 
@@ -67,5 +70,5 @@ class TensorDeviceConvertor:
 # The CIFAR images already are already normalized to [0,1], so we only do
 # the transform to [-1,1].
 class TensorCifarNormalizer:
-    def __call__(self, tensor):
+    def __call__(self, tensor: Tensor):
         return 2.0 * tensor - 1.0  # [0,1] -> [-1,1]
