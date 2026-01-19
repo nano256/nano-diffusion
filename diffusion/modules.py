@@ -186,9 +186,9 @@ class AdaLNSingle(nn.Module):
 
 def create_mlp(
     layer_dims: list[int],
-    device: torch.device | str,
     activation: nn.Module = nn.SiLU,
     final_activation: nn.Module | None = None,
+    device: torch.device | str | None = None,
 ):
     """
     Create MLP from list of layer dimensions
