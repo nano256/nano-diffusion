@@ -2,8 +2,10 @@ import re
 import unicodedata
 
 import torch
+import tqdm
 from PIL import Image
 from torch import Tensor
+from torch.utils.data import DataLoader
 
 
 def slugify(value: str, allow_unicode: bool = False):
@@ -34,6 +36,22 @@ def get_available_device():
         return torch.device("mps")
     else:
         return torch.device("cpu")
+
+
+def encode_images(dataloader: DataLoader, vae):
+    latent_list = []
+    class_list = []
+    # Convert the
+    for images, classes in tqdm(dataloader):
+        # Encode
+        with torch.no_grad():
+            latents = (
+                vae.encode(images).latent_dist.sample() * vae.config.scaling_factor
+            )
+        latent_list.extend(torch.unbind(latents))
+        class_list.extend(torch.unbind(classes))
+
+    return latent_list, class_list
 
 
 def decode_latents(latents: Tensor, vae):

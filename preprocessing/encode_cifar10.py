@@ -6,29 +6,13 @@ import torchvision.transforms as transforms
 from diffusers.models import AutoencoderKL
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10
-from tqdm import tqdm
 
 from diffusion.utils import (
     TensorCifarNormalizer,
     TensorDeviceConvertor,
+    encode_images,
     get_available_device,
 )
-
-
-def encode_images(dataloader, vae):
-    latent_list = []
-    class_list = []
-    # Convert the
-    for images, classes in tqdm(dataloader):
-        # Encode
-        with torch.no_grad():
-            latents = (
-                vae.encode(images).latent_dist.sample() * vae.config.scaling_factor
-            )
-        latent_list.extend(torch.unbind(latents))
-        class_list.extend(torch.unbind(classes))
-
-    return latent_list, class_list
 
 
 @hydra.main(version_base=None, config_path="../config", config_name="config")
