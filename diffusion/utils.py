@@ -10,8 +10,8 @@ from torch.utils.data import DataLoader
 
 def create_mlp(
     layer_dims: list[int],
-    activation: nn.Module = nn.SiLU,
-    final_activation: nn.Module | None = None,
+    activation: str,
+    final_activation: str | None = None,
     device: torch.device | str | None = None,
 ):
     """
@@ -25,6 +25,7 @@ def create_mlp(
     Returns:
         MLP as PyTorch module
     """
+    activation = getattr(nn, activation)
     layers = []
 
     for i in range(len(layer_dims) - 1):
@@ -34,6 +35,7 @@ def create_mlp(
         if i < len(layer_dims) - 2:
             layers.append(activation())
         elif final_activation is not None:
+            final_activation = getattr(nn, final_activation)
             layers.append(final_activation())
 
     return nn.Sequential(*layers).to(device=device)

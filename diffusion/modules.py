@@ -251,6 +251,7 @@ class DiTBlock(nn.Module):
             adaln_single: Globally shared AdaLN module.
             hidden_dim: Embedding size.
             num_attention_heads: Number of attentions head used.
+            activation: Activation class (not instance) for hidden layers.
             normalization_layer: Applied PyTorch normalization method, e.g. "RMSNorm".
             dropout: Dropout rate.
             device: Device to place the module on.
@@ -262,6 +263,7 @@ class DiTBlock(nn.Module):
         adaln_single: nn.Module,
         hidden_dim: int,
         num_attention_heads: int,
+        activation: str = "SiLU",
         normalization_layer: str = "LayerNorm",
         dropout: float = 0.0,
         device: torch.device | str | None = None,
@@ -287,7 +289,7 @@ class DiTBlock(nn.Module):
             device=device,
         )
         self.feedforward = create_mlp(
-            [hidden_dim, hidden_dim * 4, hidden_dim], nn.SiLU, device=device
+            [hidden_dim, hidden_dim * 4, hidden_dim], activation, device=device
         )
 
     def scale_and_shift(
