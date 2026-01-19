@@ -11,6 +11,24 @@ from diffusion.modules import (
 
 
 class NanoDiffusionModel(nn.Module):
+    """Class-conditioned DiT model, widely implemented after Pixart-Alpha.
+
+    For details about the architecture, please refer to https://arxiv.org/abs/2310.00426.
+    This model leaves out some of the optimizations of the original architecture for a
+    cleaner and easier-to-understand source code. This model is class-conditioned
+    so it can be trained on classic datasets such as CIFAR and ImageNet.
+
+    Directly used config vars are documented below. For config vars used by
+    sub-modules, please refer to the corresponding class.
+
+    Args:
+        config: Config object
+
+    Config vars (direct use):
+        num_context_classes: Number of different classes used for conditioning.
+        num_dit_blocks: Number of DiT blocks used in the model.
+    """
+
     def __init__(self, config: DictConfig):
         super().__init__()
         self.config = config
@@ -39,6 +57,17 @@ class NanoDiffusionModel(nn.Module):
         self.reshaper = Reshaper(**config)
 
     def forward(self, x: Tensor, timestep: Tensor, context: Tensor):
+        """Predicts the noise contained in the given latent image.
+
+        Args:
+            x: Noised latent images. Shape: (batch, channels, height, width)
+            timestep: Current diffusion timestep. Shape: (batch,)
+            context: Class labels used for conditioning the generation. Shape: (batch,)
+
+        Returns:
+            Predicted noise. Shape: (batch, channels, height, width)
+        """
+
         time_embedding = self.time_embedding(timestep)
         global_adaln_params = self.adaln_single(time_embedding)
         context_embedding = self.context_embedding(context).unsqueeze(1)

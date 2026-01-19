@@ -5,6 +5,17 @@ from diffusion.noise_schedulers import AbstractNoiseScheduler
 
 
 class DDIMSampler:
+    """DDIM sampler for the forward diffusion process
+
+    Denoising Diffusion Implicit Model sampler described in https://arxiv.org/abs/2010.02502.
+
+    Args:
+        model: Diffusion model
+        noise_scheduler: Noise scheduler
+        num_timesteps: Maximum number of diffusion timesteps
+        num_sampling_steps: Number of sampling steps
+    """
+
     def __init__(
         self,
         model: nn.Module,
@@ -19,6 +30,16 @@ class DDIMSampler:
         self.num_sampling_steps = num_sampling_steps
 
     def step(self, x_t: Tensor, noise_pred: Tensor, gamma_t: Tensor):
+        """Predict latent from noised latent and noise prediction.
+
+        Args:
+            x_t: noised latent images, shape: (batch_size, channels, height, width)
+            noise_pred: Noise predictions, shape: (batch_size, channels, height, width)
+            gamma_t: Noise factor, shape: (batch,)
+
+        Returns:
+            predicted denoised latent, Shape: (batch_size, channels, height, width)
+        """
         # Euler forward step to predict x_0
         return (x_t - torch.sqrt(1 - gamma_t) * noise_pred) / torch.sqrt(gamma_t)
 
@@ -27,8 +48,21 @@ class DDIMSampler:
         x_T: Tensor,
         context: Tensor,
         return_intermediates: bool = False,
-        seed: int = None,
     ):
+        """Generate image latents from noise and context.
+
+        Denoises and renoises latents over a number of sampling steps conditioned
+        on provided context.
+
+        Args:
+            x_T: Latent-shaped noise, shape: (batch_size, channels, height, width)
+            context: Class labels, shape: (batch,)
+            return_intermediates: If true, also returns the intermediate sampling steps.
+
+        Returns:
+         Final sample, shape: (batch_size, channels, height, width)
+         list of intermediate samples, list[Tensors] each with shape (batch_size, channels, height, width)
+        """
         intermediates = []
         # x_T is assumed to be full noise. It also determines the shape of the generated image.
         x_t = x_T

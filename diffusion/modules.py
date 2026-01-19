@@ -12,13 +12,9 @@ class PatchEmbedding(nn.Module):
     into sequences, commonly used in Vision Transformer architectures.
 
     Args:
-        patch_size (int): Patch size parameter.
-        hidden_dim (int): Embedding dimension for the patches.
-        in_channels (int): Number of channels of the input images
-
-    Shape:
-        - Input: (batch_size, channels, height, width)
-        - Output: (batch_size, seq_len, hidden_dim)
+        patch_size: Patch size parameter.
+        hidden_dim: Embedding dimension for the patches.
+        in_channels: Number of channels of the input images
     """
 
     def __init__(
@@ -44,13 +40,12 @@ class PatchEmbedding(nn.Module):
         Returns patches in left-to-right, top-to-bottom order.
 
         Args:
-            x (torch.tensor): Batched image latents.
+            x: Batched image latents, shape: (batch_size, channels, height, width)
 
-        Shape:
-            - Input: (batch_size, channels, height, width)
-            - Output: (batch_size, channels * patch_size**2, patch_dim),
-                      (batch_size, channels * patch_size**2),
-                      (batch_size, channels * patch_size**2)
+        Returns:
+            patches, shape: (batch_size, channels * patch_size**2, patch_dim).
+            x-positions, shape: (batch_size, channels * patch_size**2).
+            y-positions, shape: (batch_size, channels * patch_size**2).
         """
         # Check if the latent size is evenly divisable by the patch size.
         # No padding supported.
@@ -81,6 +76,16 @@ class PatchEmbedding(nn.Module):
         return patches, x_pos, y_pos
 
     def add_positional_encodings(self, x: Tensor, x_pos: Tensor, y_pos: Tensor):
+        """Adds 2D sinusoidal positional enocding onto patches.
+
+        Args:
+            x: Patch sequence, shape: (batch_size, seq_len, patch_dim)
+            x_pos: x-positions of patches, shape: (batch_size, seq_len,)
+            y_pos: y-positions of patches, shape: (batch_size, seq_len,)
+
+        Returns:
+            Positionally encoded patch sequence, shape: (batch_size, seq_len, patch_dim)
+        """
         device = x.device
         num_patches = torch.numel(x_pos)
         # Number of dimensions of the 2D sinusoidal encoding
@@ -109,6 +114,17 @@ class PatchEmbedding(nn.Module):
         return x + pos_encodings
 
     def forward(self, x: Tensor, patch_pos: bool = False):
+        """Embeds a latent image into a sequence of tokens and adds positional embeddings.
+
+        Args:
+            x: Latent images, shape: (batch_size, channels, height, width).
+            patch_pos: If true, it returns the x- & y-positions for each patch.
+
+        Returns:
+            patches, shape: (batch_size, channels * patch_size**2, patch_dim).
+            x-positions, shape: (batch_size, channels * patch_size**2,).
+            y-positions, shape: (batch_size, channels * patch_size**2,).
+        """
         x, x_pos, y_pos = self.patchify(x)
         x = self.lin_projection(x)
         x = self.add_positional_encodings(x, x_pos, y_pos)
@@ -119,6 +135,18 @@ class PatchEmbedding(nn.Module):
 
 
 class TimeEmbedding(nn.Module):
+    """Sinusoidal timestep embedding for diffusion models.
+
+    Converts integer timesteps into continuous embeddings using sinusoidal
+    positional encoding, similar to the original Transformer paper but for
+    scalar timestep values instead of sequence positions.
+
+    Args:
+        num_timesteps: Maximum number of diffusion timesteps.
+        hidden_dim: Dimension of the embedding (must be even).
+        device: Device to place the module on.
+    """
+
     def __init__(
         self, num_timesteps: int, hidden_dim: int, device: torch.device | str, **kwargs
     ):
@@ -132,6 +160,14 @@ class TimeEmbedding(nn.Module):
         self.register_buffer("omega", 1 / 10 ** (4 * freq_idx / half_hidden_dim))
 
     def forward(self, timesteps: Tensor):
+        """Encode timesteps into sinusoidal embeddings.
+
+        Args:
+            timesteps: Integer timestep values, shape: (batch,)
+
+        Returns:
+            Timestep embeddings, shape: (batch, hidden_dim)
+        """
         # make sure that when several timesteps are given that they have a shape of (batch, 1)
         batched_timesteps = timesteps.reshape(-1, 1)
         sin_encodings = torch.sin(batched_timesteps * self.omega)
@@ -142,26 +178,26 @@ class TimeEmbedding(nn.Module):
 
 
 class AdaLNSingle(nn.Module):
-    """Parameter-efficient scaling and shifting conditioned on the current timestep
+    """Parameter-efficient scaling and shifting conditioned on the current timestep.
 
     AdaLN-single implementation from PixArt-Alpha (http://arxiv.org/abs/2310.00426).
     Infers scale and shift parameters for all DiT blocks of the model in one
     forward pass.
 
         Args:
-            hidden_dim (int): Embedding size.
-            num_layers (int): Number of DiT blocks.
-
-        Shape:
-            - Input: (batch_size, hidden_dim)
-            - Output: (batch_size, 6 * hidden_dim)
+            hidden_dim: Embedding size.
+            num_layers: Number of DiT blocks.
+            device: Device to place the module on.
     """
 
     def __init__(
-        self, hidden_dim: int, num_dit_blocks: int, device: torch.device | str, **kwargs
+        self,
+        hidden_dim: int,
+        num_dit_blocks: int,
+        device: torch.device | str | None = None,
+        **kwargs,
     ):
         super().__init__()
-        # TODO: Implement AdaLN zero initialization
         self.time_mlp = nn.Sequential(
             nn.Linear(
                 hidden_dim, 6 * hidden_dim
@@ -174,12 +210,30 @@ class AdaLNSingle(nn.Module):
         )
 
     def forward(self, time_emb: Tensor):
-        """Single forward pass - compute global parameters"""
+        """Single forward pass - compute global parameters
+
+        Args:
+            time_emb: Time embeddings of current timestep, shape: (batch_size, hidden_dim)
+        Returns:
+            Global parameters, shape: (batch_size, 6 * hidden_dim)
+        """
         global_params = self.time_mlp(time_emb)  # [batch, 6*hidden_dim]
         return global_params
 
     def get_layer_params(self, global_params: Tensor, layer_idx: int):
-        """Get parameters for specific layer"""
+        """Get scale & shift parameters for specific layer
+
+        Args:
+            global_params: Global parameters, shape: (batch_size, 6 * hidden_dim)
+
+        Returns:
+            beta_1: pre-attention bias, shape: (batch_size, hidden_dim)
+            beta_2: pre-MLP bias, shape: (batch_size, hidden_dim)
+            gamma_1: pre-attention scale factor, shape: (batch_size, hidden_dim)
+            gamma_2: pre-MLP scale factor, shape: (batch_size, hidden_dim)
+            alpha_1: post-attention scale factor, shape: (batch_size, hidden_dim)
+            alpha_2: post-MLP scale factor, shape: (batch_size, hidden_dim)
+        """
         layer_emb = self.layer_embeddings[layer_idx]  # [6*hidden_dim]
         layer_params = global_params + layer_emb  # [batch, 6*hidden_dim]
         # Split them into beta_1, beta_2, gamma_1, gamma_2, alpha_1, alpha_2
@@ -193,14 +247,10 @@ class DiTBlock(nn.Module):
     Denoises image tokens conditioned on timestep and user inputs.
 
         Args:
-            layer_idx (int): Layer index
-            adaln_single (torch.nn.Module): Globally shared AdaLN module
-            hidden_dim (int): Embedding size.
-            dropout (float): Dropout rate
-
-        Shape:
-            - Input: (batch_size, seq_len, hidden_dim)
-            - Output: (batch_size, seq_len, hidden_dim)
+            layer_idx: Layer index.
+            adaln_single: Globally shared AdaLN module.
+            hidden_dim: Embedding size.
+            dropout: Dropout rate.
     """
 
     def __init__(
@@ -210,7 +260,7 @@ class DiTBlock(nn.Module):
         hidden_dim: int,
         num_attention_heads: int,
         dropout: float,
-        device: torch.device | str,
+        device: torch.device | str | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -247,6 +297,16 @@ class DiTBlock(nn.Module):
         return x1.transpose(0, 1)
 
     def forward(self, x, global_adaln_params, c=None):
+        """Forward pass of the DiT block.
+
+        Args:
+            x: Patch sequence, shape: (batch_size, seq_len, hidden_dim)
+            global_adaln_params: Global scale & shift parameters, shape: (batch_size, 6*hidden_dim)
+            c: Context embedding, shape: (batch_size, hidden_dim)
+
+        Returns:
+            Patch sequence, shape: (batch_size, seq_len, hidden_dim)
+        """
         # Get layer-specific scale and shift params
         beta_1, beta_2, gamma_1, gamma_2, alpha_1, alpha_2 = (
             self.adaln_single.get_layer_params(global_adaln_params, self.layer_idx)
@@ -279,15 +339,10 @@ class Reshaper(nn.Module):
     Reshapes a sequence of patch embeddinges and reshapes them into an image latent.
 
         Args:
-            patch_size (int): Patch size parameter.
-            hidden_dim (int): Embedding dimension for the patches.
-            in_channels (int): Number of channels of the input images.
-            x_pos (torch.Tensor): X-axis positions of the patch embeddings.
-            y_pos (torch.Tensor): Y-axis positions of the patch embeddings.
-
-        Shape:
-            - Input: (batch_size, seq_len, hidden_dim)
-            - Output: (batch_size, channels, height, width)
+            patch_size: Patch size parameter.
+            hidden_dim: Embedding dimension for the patches.
+            in_channels: Number of channels of the input images.
+            device: Device to place the module on.
     """
 
     def __init__(
@@ -308,6 +363,16 @@ class Reshaper(nn.Module):
         )
 
     def forward(self, x: Tensor, x_pos: Tensor, y_pos: Tensor):
+        """Forward pass of the Reshaper.
+
+        Args:
+            x: Patch sequence of image latent, shape: (batch_size, seq_len, hidden_dim)
+            x_pos: X-axis positions of the patch embeddings, shape: (batch_size, seq_len,)
+            y_pos: Y-axis positions of the patch embeddings, shape: (batch_size, seq_len,)
+
+        Returns:
+            image latents, shape: (batch, channels, height, width)
+        """
         width = (torch.max(x_pos) + 1) * self.patch_size
         height = (torch.max(y_pos) + 1) * self.patch_size
         x1 = F.layer_norm(x, [self.hidden_dim])

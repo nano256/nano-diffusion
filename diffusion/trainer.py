@@ -14,11 +14,24 @@ from diffusion.utils import decode_latents
 
 
 class NanoDiffusionTrainer:
-    """Trainer for the Nano Diffusion model
+    """Trainer for diffusion models with MLflow logging and checkpointing.
 
-    TODO:
-    Add all administrative stuff in the Trainer class, e.g. logging, saving model
-    checkpoints etc., and everything concerning the training run in the train function.
+    Handles the complete training loop including loss computation, validation,
+    model checkpointing, and optional image generation for monitoring. Integrates
+    with MLflow for experiment tracking.
+
+    Args:
+        model: The diffusion model to train
+        noise_scheduler: Noise scheduler for the forward diffusion process
+        checkpoint_dir: Directory to save model checkpoints
+        num_sampling_steps: Number of steps for DDIM sampling during validation
+        loss_fn: Loss function name from torch.nn.functional
+        validation_interval: Run validation every N epochs
+        save_every_n_epochs: Save checkpoint every N epochs
+        keep_n_checkpoints: Number of recent checkpoints to keep
+        vae: Optional VAE for decoding latents to images during validation
+        validation_context: Optional list of class labels to generate during validation
+
     """
 
     def __init__(
@@ -58,6 +71,14 @@ class NanoDiffusionTrainer:
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
     def compute_loss(self, batch: tuple[Tensor]):
+        """Compute diffusion training loss for a batch.
+
+        Args:
+            batch: Tuple of (latents, context), shapes: (B, C, H, W) and (B,)
+
+        Returns:
+            MSE loss between predicted and actual noise
+        """
         latents, context = batch
         latents = latents.to(dtype=torch.float32)
         device = latents.device
@@ -91,9 +112,15 @@ class NanoDiffusionTrainer:
     ):
         """Save model checkpoint with optional cleanup of old checkpoints.
 
-        The reason this isn't done with MLflow only is because it doesn't support
-        deleting once logged models which leads to a disk space overhead when
-        saving regualrly to be able to retrieve aborted runs.
+        Args:
+            epoch: Current epoch number
+            optimizer: Optimizer state to save
+            lr_scheduler: LR scheduler state to save
+            loss: Current loss value
+            is_best: If True, save as best model (doesn't count toward keep_n_checkpoints)
+
+        Returns:
+            Path to the saved checkpoint file
         """
         checkpoint = {
             "epoch": epoch,
@@ -130,24 +157,30 @@ class NanoDiffusionTrainer:
         optimizer: Optimizer | None = None,
         lr_scheduler: LRScheduler | None = None,
     ):
-        """Load model checkpoint"""
+        """Load training checkpoint from file.
+
+        Args:
+            checkpoint_path: Directory path to checkpoint file
+            optimizer: Optimizer that will be loaded
+            lr_scheduler: LR scheduler that will be loaded
+
+        Returns:
+            checkpoint epoch, checkpoint loss
+        """
         checkpoint_path = Path(checkpoint_path)
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
 
         checkpoint = torch.load(checkpoint_path, map_location="cpu")
 
-        # Load model state
         self.model.load_state_dict(checkpoint["model_state_dict"])
 
-        # Load optimizer and scheduler states if provided
         if optimizer is not None and "optimizer_state_dict" in checkpoint:
             optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
         if lr_scheduler is not None and "lr_scheduler_state_dict" in checkpoint:
             lr_scheduler.load_state_dict(checkpoint["lr_scheduler_state_dict"])
 
-        # Restore training state
         self.best_val_loss = checkpoint.get("best_val_loss", float("inf"))
 
         return checkpoint["epoch"], checkpoint["loss"]
@@ -160,6 +193,19 @@ class NanoDiffusionTrainer:
         train_dataloader: DataLoader,
         val_dataloader: DataLoader | None = None,
     ):
+        """Execute the training loop.
+
+        Runs training for the specified number of epochs, logging training and
+        validation metrics in MLflow, checkpointing, and optional image generation
+        for validation purposes.
+
+        Args:
+            epochs: Number of epochs to train
+            optimizer: PyTorch optimizer
+            lr_scheduler: Learning rate scheduler
+            train_dataloader: DataLoader for training data, providing (latents, context) tuples
+            val_dataloader: Optional DataLoader for validation data
+        """
         latent_shape = None
         validation_noise = None
 
@@ -176,10 +222,9 @@ class NanoDiffusionTrainer:
                 loss.backward()
                 optimizer.step()
 
-                """Log everything. Assumes mlflow run is already started, if not it
-                just start an unlabeled run.
-                Detach loss tensor first to suppress scalar conversion warning
-                """
+                # Log everything. Assumes mlflow run is already started, if not it
+                # just starts an unlabeled run.
+                # Detach loss tensor first to suppress scalar conversion warning.
                 mlflow.log_metrics(
                     {
                         "loss_train": loss.detach().item(),

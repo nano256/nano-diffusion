@@ -11,11 +11,6 @@ class AbstractNoiseScheduler(nn.Module, ABC):
 
     Abstract class for noise schedules implementing the forward diffusion process.
     The implementations are taken from http://arxiv.org/abs/2301.10972.
-
-        Shape:
-            - Input: (batch_size, seq_len, hidden_dim), (batch_size, timesteps)
-            - Output: (batch_size, seq_len, hidden_dim), (batch_size, seq_len, hidden_dim)
-
     """
 
     DEFAULT_CONFIG = {
@@ -28,6 +23,14 @@ class AbstractNoiseScheduler(nn.Module, ABC):
 
     @abstractmethod
     def gamma_func(self, timesteps: Tensor):
+        """Calculates the noise factors for different timesteps.
+
+        Args:
+            timesteps: Diffusion timesteps, shape: (batch,)
+
+        Returns:
+            noise factors, shape: (batch,)
+        """
         pass
 
     def forward(
@@ -37,6 +40,17 @@ class AbstractNoiseScheduler(nn.Module, ABC):
         noise: Tensor | None = None,
         return_noise: bool = True,
     ):
+        """Noises image latents according to noise schedule.
+
+        Args:
+            x: Image latents, shape: (batch, channels, height, width)
+            timesteps: Current sampling timesteps, shape: (batch,)
+            noise: Initial noise. Randomly generated if not passed, shape: (batch, channels, height, width)
+            return_noise: If true, also returns noise tensor.
+
+        Returns:
+            noised latents, shape: (batch, channels, height, width)
+        """
         device = x.device
         # Make sure that the timesteps are broadcasted correctly
         # so the element-wise operation on the latents work.
@@ -59,9 +73,9 @@ class LinearNoiseScheduler(AbstractNoiseScheduler):
 
     Generates a linear noise schedule for the forward diffusion process.
 
-        Config args:
-            num_timesteps (torch.Tensor): Tensor of timesteps (int values)
-            clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
+    Config args:
+        num_timesteps: Diffusion timesteps, shape (batch,)
+        clip_min: Minimal return value, for numeric stability purposes.
     """
 
     def gamma_func(self, timesteps):
@@ -74,12 +88,12 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
 
     Generates a cosine noise schedule for the forward diffusion process.
 
-        Config args:
-            num_timesteps (torch.Tensor): Tensor of timesteps (int values)
-            clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
-            start (float): Interpolation start (default: 0.2)
-            end (float): Interpolation end (default: 1.0)
-            tau (float): Scale factor (default: 2.0)
+    Config args:
+        num_timesteps: Diffusion timesteps, shape (batch,)
+        clip_min: Minimal return value, for numeric stability purposes
+        start: Interpolation start
+        end: Interpolation end
+        tau: Scale factor
     """
 
     DEFAULT_CONFIG = {
@@ -110,12 +124,12 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
 
     Generates a sigmoid noise schedule for the forward diffusion process.
 
-        Config args:
-            num_timesteps (torch.Tensor): Tensor of timesteps (int values)
-            clip_min (float): Minimal return value, for numeric stability purposes (default: 1e-9)
-            start (float): Interpolation start (default: 0.0)
-            end (float): Interpolation end (default: 3.0)
-            tau (float): Scale factor (default: 0.7)
+    Config args:
+        num_timesteps: Diffusion timesteps, shape (batch,)
+        clip_min: Minimal return value, for numeric stability purposes
+        start: Interpolation start
+        end: Interpolation end
+        tau: Scale factor
     """
 
     DEFAULT_CONFIG = {

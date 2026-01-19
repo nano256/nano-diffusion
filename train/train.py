@@ -1,3 +1,20 @@
+"""Training script for Nano-Diffusion models.
+
+This script handles the complete training pipeline:
+1. Loads pre-encoded CIFAR-10 latents
+2. Initializes model, optimizer, and noise scheduler
+3. Sets up MLflow experiment tracking
+4. Runs training via NanoDiffusionTrainer
+5. Saves checkpoints and logs metrics
+
+Usage:
+    python train/train.py                   # Use config/config.yaml
+    python train/train.py debug=true        # Override debug flag
+
+Configuration is managed via Hydra from config/config.yaml. More details are
+provided in the README of the repository.
+"""
+
 import sys
 from pathlib import Path
 

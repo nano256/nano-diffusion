@@ -1,3 +1,24 @@
+"""Encode CIFAR-10 dataset into latent space using a pretrained VAE.
+
+This preprocessing step converts CIFAR-10 images into compressed latent
+representations, which are used for training the latent diffusion model.
+This significantly speeds up training compared to pixel-space diffusion.
+
+Usage:
+    python preprocessing/encode_cifar10.py          # Full dataset
+    python preprocessing/encode_cifar10.py --debug  # Small subset for testing
+
+Output:
+    - data/cifar10_latents/cifar10_latents.pt (full dataset)
+    - data/cifar10_latents_debug/cifar10_latents.pt (debug subset)
+
+The output file contains:
+    {
+        'train': {'latents': Tensor, 'labels': Tensor},
+        'test': {'latents': Tensor, 'labels': Tensor}
+    }
+"""
+
 from pathlib import Path
 
 import hydra
