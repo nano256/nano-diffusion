@@ -2,6 +2,8 @@ import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
 
+from diffusion.utils import create_mlp
+
 
 class PatchEmbedding(nn.Module):
     """Convert 2D images into sequences of patches for vision transformers.
@@ -182,34 +184,6 @@ class AdaLNSingle(nn.Module):
         layer_params = global_params + layer_emb  # [batch, 6*hidden_dim]
         # Split them into beta_1, beta_2, gamma_1, gamma_2, alpha_1, alpha_2
         return torch.chunk(layer_params, 6, dim=-1)
-
-
-def create_mlp(
-    layer_dims: list[int],
-    activation: nn.Module = nn.SiLU,
-    final_activation: nn.Module | None = None,
-    device: torch.device | str | None = None,
-):
-    """
-    Create MLP from list of layer dimensions
-
-    Args:
-        layer_dims: List of dimensions [input_dim, hidden1, hidden2, ..., output_dim]
-        activation: Activation class (not instance) for hidden layers
-        final_activation: Optional activation for final layer
-    """
-    layers = []
-
-    for i in range(len(layer_dims) - 1):
-        layers.append(nn.Linear(layer_dims[i], layer_dims[i + 1]))
-
-        # Add activation except for final layer (unless specified)
-        if i < len(layer_dims) - 2:
-            layers.append(activation())
-        elif final_activation is not None:
-            layers.append(final_activation())
-
-    return nn.Sequential(*layers).to(device=device)
 
 
 class DiTBlock(nn.Module):

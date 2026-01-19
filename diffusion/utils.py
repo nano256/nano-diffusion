@@ -4,8 +4,36 @@ import unicodedata
 import torch
 import tqdm
 from PIL import Image
-from torch import Tensor
+from torch import Tensor, nn
 from torch.utils.data import DataLoader
+
+
+def create_mlp(
+    layer_dims: list[int],
+    activation: nn.Module = nn.SiLU,
+    final_activation: nn.Module | None = None,
+    device: torch.device | str | None = None,
+):
+    """
+    Create MLP from list of layer dimensions
+
+    Args:
+        layer_dims: List of dimensions [input_dim, hidden1, hidden2, ..., output_dim]
+        activation: Activation class (not instance) for hidden layers
+        final_activation: Optional activation for final layer
+    """
+    layers = []
+
+    for i in range(len(layer_dims) - 1):
+        layers.append(nn.Linear(layer_dims[i], layer_dims[i + 1]))
+
+        # Add activation except for final layer (unless specified)
+        if i < len(layer_dims) - 2:
+            layers.append(activation())
+        elif final_activation is not None:
+            layers.append(final_activation())
+
+    return nn.Sequential(*layers).to(device=device)
 
 
 def slugify(value: str, allow_unicode: bool = False):
