@@ -27,20 +27,10 @@ from torch.utils.data import DataLoader, TensorDataset
 
 sys.path.append(str(Path(__file__).parent.parent))
 
+import diffusion
 from diffusion.model import NanoDiffusionModel
-from diffusion.noise_schedulers import (
-    CosineNoiseScheduler,
-    LinearNoiseScheduler,
-    SigmoidNoiseScheduler,
-)
 from diffusion.trainer import NanoDiffusionTrainer
 from diffusion.utils import get_available_device, get_kwargs, slugify
-
-SCHEDULER_REGISTRY = {
-    "linear": LinearNoiseScheduler,
-    "cosine": CosineNoiseScheduler,
-    "sigmoid": SigmoidNoiseScheduler,
-}
 
 
 def load_cifar10_latents(data_path):
@@ -120,8 +110,8 @@ def train(cfg):
 
     model = NanoDiffusionModel(cfg.model).to(device)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
-    noise_scheduler_type = SCHEDULER_REGISTRY[cfg.noise_scheduler.type]
-    noise_scheduler = noise_scheduler_type(cfg.noise_scheduler)
+    noise_scheduler = getattr(diffusion.noise_schedulers, cfg.noise_scheduler.type)
+    noise_scheduler = noise_scheduler(cfg.noise_scheduler)
     # Pop the optimizer type so it doesn't interfere with its own kwargs afterwards
     optimizer = getattr(torch.optim, cfg.optimizer.type)
     optimizer = optimizer(model.parameters(), **get_kwargs(cfg.optimizer))
