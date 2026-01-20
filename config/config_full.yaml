@@ -1,0 +1,214 @@
+# ============================================================================
+# COMPLETE CONFIGURATION REFERENCE FOR NANO-DIFFUSION
+# ============================================================================
+# This file contains ALL available configuration parameters with descriptions.
+# Use this as a reference when customizing your training runs.
+# For a minimal config, see config.yaml
+# ============================================================================
+
+# ============================================================================
+# TOP-LEVEL CONFIGURATION
+# ============================================================================
+
+# Name of the MLflow experiment (used for organizing runs)
+experiment_name: "cifar10"
+
+# Number of training epochs
+epochs: 1000
+
+# Total number of diffusion timesteps (shared across model, trainer, and scheduler)
+num_timesteps: 1000
+
+# Batch size for training and validation
+batch_size: 256
+
+# Data type for latents (options: float32, float16)
+# Note: float16 may cause training instability
+data_dtype: float32
+
+# Debug mode: if True, uses a small subset of data for quick testing
+# (loads from data/cifar10_latents_debug/ instead of data/cifar10_latents/)
+debug: False
+
+# ============================================================================
+# MODEL CONFIGURATION
+# ============================================================================
+model:
+  # Patch size for dividing latent images into patches
+  # Smaller values = more patches = higher resolution but more compute
+  # Latent dimensions must be evenly divisible by this value
+  patch_size: 2
+
+  # Hidden dimension / embedding size throughout the model
+  # Affects model capacity and memory usage
+  # Common values: 384, 512, 768, 1024
+  hidden_dim: 768
+
+  # Number of attention heads in each DiT block
+  # Must divide evenly into hidden_dim
+  # More heads = more parallel attention patterns
+  num_attention_heads: 12
+
+  # Number of DiT blocks in the model
+  # More blocks = deeper model = more capacity but slower training
+  num_dit_blocks: 12
+
+  # Activation function used in feedforward layers
+  # Options: "SiLU", "GELU", "ReLU", "Mish"
+  # SiLU (Swish) is standard for DiT models
+  activation: "SiLU"
+
+  # Normalization layer type used in DiT blocks
+  # Options: "LayerNorm", "RMSNorm"
+  # RMSNorm is more efficient and often performs better
+  normalization_layer: "RMSNorm"
+
+  # Number of classes for conditional generation
+  # For CIFAR-10: 10 classes
+  num_context_classes: 10
+
+  # Reference to the global num_timesteps parameter
+  # Uses Hydra variable interpolation
+  num_timesteps: ${num_timesteps}
+
+  # Pretrained VAE model from Hugging Face Hub
+  # Used to encode images to latent space and decode back
+  # This VAE has 16 latent channels and 8x spatial compression
+  vae_name: "ostris/vae-kl-f8-d16"
+
+  # Number of channels in the latent space
+  # Must match the VAE's latent channel count (16 for ostris/vae-kl-f8-d16)
+  in_channels: 16
+
+  # Dropout rate for regularization (0.0 = no dropout)
+  # Values between 0.0-0.1 are typical
+  # Higher values may hurt generation quality
+  dropout: 0.0
+
+  # Device to place the model on
+  # Options: "cuda", "cpu", "mps" (for Apple Silicon), or null (auto-detect)
+  # null will automatically choose the best available device
+  device: null
+
+# ============================================================================
+# TRAINER CONFIGURATION
+# ============================================================================
+trainer:
+  # Number of sampling steps for DDIM during validation image generation
+  # Fewer steps = faster sampling but potentially lower quality
+  # More steps = slower but higher quality samples
+  # Common values: 20-100 (training), 50-1000 (inference)
+  num_sampling_steps: 50
+
+  # Loss function for training
+  # Options: "mse_loss" (L2), "l1_loss" (L1), "smooth_l1_loss", "huber_loss"
+  # MSE is standard for diffusion models
+  loss_fn: "mse_loss"
+
+  # Run validation and generate sample images every N epochs
+  # Set higher to speed up training, lower for more frequent monitoring
+  validation_interval: 10
+
+  # Save model checkpoint every N epochs
+  # Checkpoints allow resuming training and tracking model evolution
+  save_every_n_epochs: 10
+
+  # Number of recent regular checkpoints to keep (excluding best model)
+  # Older checkpoints are automatically deleted to save disk space
+  # Best model checkpoint is always kept separately
+  keep_n_checkpoints: 3
+
+  # List of class labels to generate during validation
+  # Generates one sample per class and logs to MLflow
+  # Set to null to disable validation image generation (speeds up training)
+  # For CIFAR-10, classes are: 0=airplane, 1=automobile, 2=bird, 3=cat,
+  # 4=deer, 5=dog, 6=frog, 7=horse, 8=ship, 9=truck
+  validation_context: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+
+  # Use fixed noise seed for validation image generation
+  # If True: same noise across all validation epochs (easier to track progress)
+  # If False: random noise each time (more diverse samples)
+  fixed_validation_noise: False
+
+# ============================================================================
+# NOISE SCHEDULER CONFIGURATION
+# ============================================================================
+noise_scheduler:
+  # Noise scheduler class name from diffusion.noise_schedulers
+  # Cosine scheduler provides smooth noise schedule, works well for most cases
+  # Options: "LinearNoiseScheduler", "CosineNoiseScheduler", "SigmoidNoiseScheduler"
+  type: "CosineNoiseScheduler"
+
+  # Number of diffusion timesteps
+  num_timesteps: ${num_timesteps}
+
+  # Additional parameters depend on the scheduler type
+  # Each scheduler has DEFAULT_CONFIG that will be merged with these values
+  # Only specify parameters you want to override
+
+  # Common parameter (all schedulers):
+  # clip_min: 1e-9  # Minimum value for numerical stability (default: 1e-9)
+
+  # CosineNoiseScheduler specific (defaults in parentheses):
+  # start: 0.2   # Interpolation start (default: 0.2)
+  # end: 1.0     # Interpolation end (default: 1.0)
+  # tau: 2.0     # Scale factor (default: 2.0)
+
+  # SigmoidNoiseScheduler specific (defaults in parentheses):
+  # start: 0.0   # Interpolation start (default: 0.0)
+  # end: 3.0     # Interpolation end (default: 3.0)
+  # tau: 0.7     # Scale factor (default: 0.7)
+
+  # LinearNoiseScheduler has no additional parameters
+
+# ============================================================================
+# OPTIMIZER CONFIGURATION
+# ============================================================================
+optimizer:
+  # Optimizer class name from torch.optim
+  # AdamW is recommended for transformer-based models like DiT
+  # Options: "Adam", "AdamW", "SGD", "RMSprop", "Adagrad", etc.
+  type: "AdamW"
+
+  # All other parameters are passed as kwargs to the optimizer constructor
+  # See PyTorch documentation for available parameters:
+  # https://pytorch.org/docs/stable/optim.html
+
+  lr: 1e-4              # Learning rate
+  weight_decay: 1e-4    # Weight decay (L2 regularization)
+  # betas: [0.9, 0.999] # Adam/AdamW beta parameters
+  # eps: 1e-8           # Term for numerical stability
+  # momentum: 0.9       # SGD momentum
+
+# ============================================================================
+# LEARNING RATE SCHEDULER CONFIGURATION
+# ============================================================================
+lr_scheduler:
+  # LR scheduler class name from torch.optim.lr_scheduler
+  # CosineAnnealingLR provides smooth cosine decay, works well for diffusion models
+  # Options: "CosineAnnealingLR", "StepLR", "ExponentialLR", "ReduceLROnPlateau", "MultiStepLR", etc.
+  type: "CosineAnnealingLR"
+
+  # All other parameters are passed as kwargs to the scheduler constructor
+  # See PyTorch documentation for available parameters:
+  # https://pytorch.org/docs/stable/optim.html#how-to-adjust-learning-rate
+
+  T_max: 100        # Period of cosine cycle
+  # eta_min: 0      # Minimum learning rate
+  # step_size: 30   # StepLR: decay every N epochs
+  # gamma: 0.1      # StepLR/ExponentialLR: decay factor
+  # milestones: [30, 80]  # MultiStepLR: epochs to decay at
+
+# ============================================================================
+# HYDRA CONFIGURATION
+# ============================================================================
+# These settings control Hydra's behavior (don't modify unless you know what you're doing)
+
+hydra:
+  # Disable Hydra's automatic output directory creation
+  output_subdir: null
+
+  # Run directory settings
+  run:
+    # Use current directory instead of creating timestamped Hydra output dirs
+    dir: .
