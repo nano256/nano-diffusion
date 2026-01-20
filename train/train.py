@@ -34,7 +34,7 @@ from diffusion.noise_schedulers import (
     SigmoidNoiseScheduler,
 )
 from diffusion.trainer import NanoDiffusionTrainer
-from diffusion.utils import get_available_device, slugify
+from diffusion.utils import get_available_device, get_kwargs, slugify
 
 SCHEDULER_REGISTRY = {
     "linear": LinearNoiseScheduler,
@@ -122,8 +122,11 @@ def train(cfg):
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
     noise_scheduler_type = SCHEDULER_REGISTRY[cfg.noise_scheduler.type]
     noise_scheduler = noise_scheduler_type(cfg.noise_scheduler)
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
-    lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=100)
+    # Pop the optimizer type so it doesn't interfere with its own kwargs afterwards
+    optimizer = getattr(torch.optim, cfg.optimizer.type)
+    optimizer = optimizer(model.parameters(), **get_kwargs(cfg.optimizer))
+    lr_scheduler = getattr(torch.optim.lr_scheduler, cfg.lr_scheduler.type)
+    lr_scheduler = lr_scheduler(optimizer, **get_kwargs(cfg.lr_scheduler))
 
     # Only load VAE if we do sanity check image generation throughout the run
     if cfg.trainer.validation_context is not None:

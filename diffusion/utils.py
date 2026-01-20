@@ -171,3 +171,8 @@ class TensorCifarNormalizer:
 
     def __call__(self, tensor: Tensor):
         return 2.0 * tensor - 1.0  # [0,1] -> [-1,1]
+
+
+def get_kwargs(cfg, exclude="type"):
+    """Extract kwargs from config, excluding specified key."""
+    return {k: v for k, v in cfg.items() if k != exclude}

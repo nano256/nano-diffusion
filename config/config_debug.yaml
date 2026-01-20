@@ -28,6 +28,10 @@ trainer:
 noise_scheduler:
   type: "cosine"
   num_timesteps: ${num_timesteps}
+optimizer:
+  type: "AdamW"
+lr_scheduler:
+  type: "CosineAnnealingLR"
 
   # This avoids Hydra from logging runs
 hydra:  
