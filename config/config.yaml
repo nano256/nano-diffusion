@@ -32,6 +32,7 @@ optimizer:
   type: "AdamW"
 lr_scheduler:
   type: "CosineAnnealingLR"
+  T_max: 100
   # This avoids Hydra from logging runs
 hydra:  
   output_subdir: null  
