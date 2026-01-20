@@ -109,6 +109,10 @@ def train(cfg):
     )
 
     model = NanoDiffusionModel(cfg.model).to(device)
+    # PyTorch fuses operations where possible in the model computation graph.
+    # Significanlty speeds up training, but limited support on MPS.
+    if device.type == "cuda":
+        model = torch.compile(model)
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
     noise_scheduler = getattr(diffusion.noise_schedulers, cfg.noise_scheduler.type)
     noise_scheduler = noise_scheduler(cfg.noise_scheduler)
