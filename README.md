@@ -100,13 +100,13 @@ All the essential parts are implemented in pure PyTorch for maximal tweakability
 | `NanoDiffusionTrainer` |`diffusion/trainer.py`| Manages everything from training loop, checkpointing, and logging. Uses MLflow as default logger. |
 
 ### What's not Included
-**VAE**
+#### VAE
 Training a VAE from scratch is a whole project on its own and since this repository should be a first hands-on exerience with diffusion models, we work with a pretrained VAE.
 
-**Text Conditioning**
+#### Text Conditioning
 `NanoDiffusionModel` is class-conditioned, which means that we use a simple embedding layer for generating the conditioning token. This is done to make the model more resource-efficient. Just to give you some perspective, our conditioning layer approxiamtely makes up 0.1% of our total model parameters (7'680 of 89M parameters in the default model), while in text-conditioned models, like Stable Diffusion 3, the text encoders are often as big or bigger as the denoising backbone itself (Text encoding: 7B total (CLIP-L 428M + OpenCLIP bigG 1.8B + T5-XXL 4.7B) vs. Denoising backbone (2B for Medium and 8B for Large)[^4]). While you usually don't need the text encoders for training (the text prompts are ususally embedded once during data preprocessing), it puts a strain on your hardware during inference.
 
-**No (Advanced) Training Acceleration Techniques**
+#### No (Advanced) Training Acceleration Techniques
 This codebase is deliberately kept simple so that you don't have to fight through tons of additional concepts aside of basic diffusion itself and that the code stays managable and extendable. But if you are interested to learn more about improving training speed, check out the [What to Do Next?](#what-to-do-next) section.
 
 ## What to Do Next?
