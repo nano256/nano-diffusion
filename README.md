@@ -1,4 +1,4 @@
-# Nano Diffusion - A Minimal Diffusion implementation in PyTorch
+# Nano Diffusion - A Minimal Diffusion Implementation in PyTorch
 
 ## ⚠️ This repo is currently work-in-progress. Some documentation, functionalites and illustration may miss.
 
@@ -10,13 +10,13 @@ The repo contains a Diffusion Transformer (DiT) model, trainer, noise schedulers
 
 TODO: Add section about class-conditioned generation and choice of dataset.
 
-## Getting started
-### Using a Docker container
+## Getting Started
+### Using a Docker Container
 The project provides a custom Docker container so you don't have to mess with the PyTorch version and it's CUDA dependencies. If you want to run the code directly on your machine instead, you can skip this section.
 
 TODO: Add Docker setup
 
-### Setting up the Python environment
+### Setting Up the Python Environment
 Clone the repository and set up a virtual Python environment (I recommend pyenv). Make sure that you use Python 3.12 or higher. Navigate to the root folder of the cloned repository and install the dependencies:
 ```bash
 git clone https://github.com/nano256/nano-diffusion.git
@@ -54,9 +54,9 @@ Now you should be able to access the MLflow UI from your browser at http://127.0
 
 TODO: Add a short explanation of the most important nomenclature of MLflow, along with some screenshots how your runs will look like.
 
-## Model inference
+## Model Inference
 The repository provides some scripts so you can generate images after you trained a model. Alternatively, download a pretrained checkpoint here (TODO: Upload a checkpoint somewhere to download) and run it instead.
-### Use the notebook
+### Use the Notebook
 The model inference notebook provides you with the possibility to load and use a model checkpoint to generate samples of the different classes in a straightforward way. Furthermore, there is also a part that let's you generate noise trajectories of your generations, so that you can see how the model progresses from noise to a coherent image over intermediate steps.
 
 TODO: Add a figure of a denoising trajectory and the diffent class generations.
@@ -71,7 +71,7 @@ All script arguments are handled over config files. You can find a variety of di
 `config_debug.yaml`: Used for debugging and sanity checks of the codebase.Only uses a subset of the actual dataset and a much smaller model.
 `config_full.yaml`: Contains all config parameters available, along with comments explaining their purpose. A great entry point if you want to tinker with a custom config yourself.
 
-### Running scripts with a different conifig
+### Running Scripts with a Different Config
 You can override the default config by using `--config-name`.
 
 ```bash
@@ -100,9 +100,14 @@ All the essential parts are implemented in pure PyTorch for maximal tweakability
 | `NanoDiffusionTrainer` |`diffusion/trainer.py`| Manages everything from training loop, checkpointing, and logging. Uses MLflow as default logger. |
 
 ### What's not Included
-- VAE: Training a VAE from scratch is a whole project on its own and since this repository should be a first hands-on exerience with diffusion models, we work with a pretrained VAE.
-- Text conditioning: `NanoDiffusionModel` is class-conditioned, which means that we use a simple embedding layer for generating the conditioning token. This is done to make the model more resource-efficient. Just to give you some perspective, our conditioning layer approxiamtely makes up 0.1% of our total model parameters (7'680 of 89M parameters in the default model), while in text-conditioned models, like Stable Diffusion 3, the text encoders are often as big or bigger as the denoising backbone itself (Text encoding: 7B total (CLIP-L 428M + OpenCLIP bigG 1.8B + T5-XXL 4.7B) vs. Denoising backbone (2B for Medium and 8B for Large)[^4]). While you usually don't need the text encoders for training (the text prompts are ususally embedded once during data preprocessing), it puts a strain on your hardware during inference.
-- No (advanced) training acceleration techniques: This codebase is deliberately kept simple so that you don't have to fight through tons of additional concepts aside of basic diffusion itself and that the code stays managable and extendable. But if you are interested to learn more about improving training speed, check out the [What to Do Next?](#what-to-do-next?) section.
+**VAE**
+Training a VAE from scratch is a whole project on its own and since this repository should be a first hands-on exerience with diffusion models, we work with a pretrained VAE.
+
+**Text Conditioning**
+`NanoDiffusionModel` is class-conditioned, which means that we use a simple embedding layer for generating the conditioning token. This is done to make the model more resource-efficient. Just to give you some perspective, our conditioning layer approxiamtely makes up 0.1% of our total model parameters (7'680 of 89M parameters in the default model), while in text-conditioned models, like Stable Diffusion 3, the text encoders are often as big or bigger as the denoising backbone itself (Text encoding: 7B total (CLIP-L 428M + OpenCLIP bigG 1.8B + T5-XXL 4.7B) vs. Denoising backbone (2B for Medium and 8B for Large)[^4]). While you usually don't need the text encoders for training (the text prompts are ususally embedded once during data preprocessing), it puts a strain on your hardware during inference.
+
+**No (Advanced) Training Acceleration Techniques**
+This codebase is deliberately kept simple so that you don't have to fight through tons of additional concepts aside of basic diffusion itself and that the code stays managable and extendable. But if you are interested to learn more about improving training speed, check out the [What to Do Next?](#what-to-do-next) section.
 
 ## What to Do Next?
 So you you studied the code and trained your first diffusion model from scratch - what's next? The best way to learn something is by following your curiosity and getting your hands dirty. Play around with the hyperparameters, check out what others are doing, read up on some of the developments in ML research, and then fork the repository and try to implement it. Below you find some ideas to get you started:
