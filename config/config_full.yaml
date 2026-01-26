@@ -146,8 +146,9 @@ noise_scheduler:
   # Each scheduler has DEFAULT_CONFIG that will be merged with these values
   # Only specify parameters you want to override
 
-  # Common parameter (all schedulers):
-  # clip_min: 1e-9  # Minimum value for numerical stability (default: 1e-9)
+  # Common parameters (all schedulers):
+  # scale_factor: 1.0  # Scale factor on the image during noising
+  # clip_min: 1e-9    # Minimum value for numerical stability (default: 1e-9)
 
   # CosineNoiseScheduler specific (defaults in parentheses):
   # start: 0.2   # Interpolation start (default: 0.2)

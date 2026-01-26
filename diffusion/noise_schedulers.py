@@ -15,6 +15,7 @@ class AbstractNoiseScheduler(nn.Module, ABC):
 
     DEFAULT_CONFIG = {
         "clip_min": 1e-9,
+        "scale_factor": 1.0,
     }
 
     def __init__(self, config: DictConfig):
@@ -63,9 +64,16 @@ class AbstractNoiseScheduler(nn.Module, ABC):
             noise = torch.randn_like(x, device=device)
 
         if return_noise is True:
-            return torch.sqrt(gamma) * x + torch.sqrt(1 - gamma) * noise, noise
+            return (
+                torch.sqrt(gamma) * self.config.scale_factor * x
+                + torch.sqrt(1 - gamma) * noise,
+                noise,
+            )
         else:
-            return torch.sqrt(gamma) * x + torch.sqrt(1 - gamma) * noise
+            return (
+                torch.sqrt(gamma) * self.config.scale_factor * x
+                + torch.sqrt(1 - gamma) * noise
+            )
 
 
 class LinearNoiseScheduler(AbstractNoiseScheduler):
@@ -75,6 +83,7 @@ class LinearNoiseScheduler(AbstractNoiseScheduler):
 
     Config args:
         num_timesteps: Diffusion timesteps, shape (batch,)
+        scale_factor: Scale factor on the image during noising
         clip_min: Minimal return value, for numeric stability purposes.
     """
 
@@ -90,6 +99,7 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
 
     Config args:
         num_timesteps: Diffusion timesteps, shape (batch,)
+        scale_factor: Scale factor on the image during noising
         clip_min: Minimal return value, for numeric stability purposes
         start: Interpolation start
         end: Interpolation end
@@ -100,6 +110,7 @@ class CosineNoiseScheduler(AbstractNoiseScheduler):
         "start": 0.2,
         "end": 1.0,
         "tau": 2.0,
+        "scale_factor": 1.0,
         "clip_min": 1e-9,
     }
 
@@ -126,6 +137,7 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
 
     Config args:
         num_timesteps: Diffusion timesteps, shape (batch,)
+        scale_factor: Scale factor on the image during noising
         clip_min: Minimal return value, for numeric stability purposes
         start: Interpolation start
         end: Interpolation end
@@ -136,6 +148,7 @@ class SigmoidNoiseScheduler(AbstractNoiseScheduler):
         "start": 0.0,
         "end": 3.0,
         "tau": 0.7,
+        "scale_factor": 1.0,
         "clip_min": 1e-9,
     }
 
