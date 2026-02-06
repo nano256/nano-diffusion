@@ -1,5 +1,7 @@
 # Nano Diffusion - A Minimal Diffusion Implementation in PyTorch
 
+![image](img/diffusion_process.jpg)
+
 ## ⚠️ This repo is currently work-in-progress. Some documentation, functionalites and illustration may miss.
 
 Getting to know a new model architecture is often overwhelming and advanced codebases are too complicated to understand or adapt for simply getting your hands dirty. This repository addresses this problem for understanding modern diffusion models. Here you find a with a minimal diffusion implementation that only uses PyTorch at its heart. Explore, modify, or simply train a vanilla diffusion model from scratch and get hands-on experience with the principles that drive modern image and video generation.
