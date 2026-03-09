@@ -4,6 +4,7 @@ nbstripout
 Pillow
 tqdm
 typer
+plotly
 pytest
 mlflow
 -e .
