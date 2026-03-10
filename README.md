@@ -29,6 +29,10 @@ REPO_NAME=nano256/nano-diffusion
 GITHUB_TOKEN=your-gh-token
 # Protects the exposed Jupyter Notebook service with a password
 JUPYTER_PASSWORD=your-password
+# SSH password for "user"
+SSH_USER_PASSWORD=your_secure_password
+# SSH password for root. If not set, allows passwordless sudo
+SSH_ROOT_PASSWORD=your_root_password
 ```
 Build the image locally by executing following command from the proect root.
 

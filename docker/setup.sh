@@ -69,6 +69,22 @@ else
   echo "No .env file found in parent directories."
 fi
 
+# Set SSH passwords from environment variables
+  if [ -n "$SSH_USER_PASSWORD" ]; then
+    echo "Setting password for user..."
+    echo "user:$SSH_USER_PASSWORD" | chpasswd
+  else
+    echo "SSH_USER_PASSWORD not set, using default"
+    echo "user:runpod" | chpasswd
+  fi
+
+  if [ -n "$SSH_ROOT_PASSWORD" ]; then
+    echo "Setting password for root..."
+    echo "root:$SSH_ROOT_PASSWORD" | chpasswd
+  else
+    echo "SSH_ROOT_PASSWORD not set, root password unchanged"
+  fi
+
 # Use a venv in the persistent volume so that the Python packages don't
 # have to be reinstalled every container start
 if [ -d "$VENV_PATH" ]; then

@@ -23,7 +23,7 @@ RUN mkdir /var/run/sshd \
 
 # Create a user for better shell experience
 RUN useradd -m -s /bin/bash user \
-    && echo 'user:runpod' | chpasswd \
+    && echo 'user:helloworld' | chpasswd \
     && usermod -aG sudo user \
     && echo 'user ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
