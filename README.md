@@ -8,15 +8,56 @@ Getting to know a new model architecture is often overwhelming and advanced code
 
 While transformers dominate ML discourse, diffusion models have quietly achieved state-of-the-art results across various domains, including language tasks, and can address some limitations of auto-regressive models. This repo gives you a quick start in your diffusion journey and allows you to begin your first diffusion training run in minutes.
 
-The repo contains a Diffusion Transformer (DiT) model, trainer, noise schedulers, sampler, and FID scorer, all written as a minimalist PyTorch implementation so that you can check out the what the code does and tweak it.
+The repo contains a Diffusion Transformer (DiT) model, trainer, noise schedulers, and sampler, all written as a minimalist PyTorch implementation so that you can check out the what the code does and tweak it.
 
 TODO: Add section about class-conditioned generation and choice of dataset.
 
 ## Getting Started
 ### Using a Docker Container
-The project provides a custom Docker container so you don't have to mess with the PyTorch version and it's CUDA dependencies. If you want to run the code directly on your machine instead, you can skip this section.
+The project provides a custom Docker container so you don't have to mess with the PyTorch version and it's CUDA dependencies. If you want to run the code directly on your machine instead, you can skip this section. The Docker setup provides some quality-of-life features, such as an MLflow dashboard, a Jupyter server on port, SSH, persistent volumes so that training logs and model checkpoints keep retained and datasets don't have to be redownloaded at every restart of the container. Furthermore, the setup script pulls the repo on container boot-up so that it always works with the latest code without rebuilding the image.
 
-TODO: Add Docker setup
+#### Why using Docker?
+If you already know Docker, go directly to [Building the Docker Image](#building-the-docker-image), otherwise here's a quick explanation why Docker is actually a great tool when developing stuff. Using Docker provides a lot of advantages beyond just the CUDA mess (which is definitely already enough reason on it own!). The main idea of Docker is to isolate an environment you want to run from your actual host environment. This means that Docker allows you to tweak your development environment without changing anything your own computer's setup. If you need to a specific software for your project, e.g. a server for model inference, then you can install and use it in your Docker container without bloating your host OS or interferring with version conflicts. It also makes your setup portable. Maybe you do some early tests with samller models on your home computer, but if you start working with bigger models, you will probably need to switch to a cloud provider that offers more computing power. Docker ensures that your setup works exactly the same when you use it on another infrastructure. Even if it seems daunting to use yet another tool, I think it's well worth to get comfortable with Docker. 
+
+#### Building the Docker Image
+First, create a `.env` file in the `docker` directory (that's important, otherwise Docker Compose won't pick it up), with variables you see in the example below and enter the values according to your project.
+
+```bash
+# Change the name of the repo in case you forked it
+REPO_NAME=nano256/nano-diffusion
+# This make sure that you also can pull your repo even if it's private
+GITHUB_TOKEN=your-gh-token
+# Protects the exposed Jupyter Notebook service with a password
+JUPYTER_PASSWORD=your-password
+```
+Build the image locally by executing following command from the proect root.
+
+```bash
+docker compose -f docker/docker-compose.yml build
+```
+#### Starting the Docker Container
+Start a Docker container in the detached mode from the project root:
+
+```bash
+# Starts a container in detached mode
+docker compose -f docker/docker-compose.yml up -d
+```
+It's important to use Docker Compose for launching the container since ´docker-compose.yml´ manages the persistent volumes, secrets, and GPU configs. 
+
+#### Interacting with the Docker Container
+If you have shell access to the computer that runs the container, you can access the container's shell by exectuing the `bash` command via Docker Compose from the `docker` directory.
+
+```bash
+docker compose exec workspace bash
+```
+
+Since the Docker container has a SSH service running that is bound to your host's port `2222`, you can also connect via SSH.
+
+```bash
+ssh -p 2222 root@localhost
+```
+
+Your container also runs a Jupyter server on http://localhost:8888 where you can play around with the instructional notebooks, do data exploration or model inference. There's also a MLflow dashboard on http://localhost:5000 where you can check on the logs of your experiments.
 
 ### Setting Up the Python Environment
 Clone the repository and set up a virtual Python environment (I recommend pyenv). Make sure that you use Python 3.12 or higher. Navigate to the root folder of the cloned repository and install the dependencies:
@@ -50,9 +91,9 @@ python train/train.py
 ### Monitoring a Run
 Open a separate terminal and start the MLflow server:
 ```bash
-mlflow server --host 127.0.0.1 --port 8080
+mlflow server --host 127.0.0.1 --port 5000
 ```
-Now you should be able to access the MLflow UI from your browser at http://127.0.0.1:8080.
+Now you should be able to access the MLflow UI from your browser at http://127.0.0.1:5000.
 
 TODO: Add a short explanation of the most important nomenclature of MLflow, along with some screenshots how your runs will look like.
 
