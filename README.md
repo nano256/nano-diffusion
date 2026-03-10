@@ -13,6 +13,7 @@ The repo contains a Diffusion Transformer (DiT) model, trainer, noise schedulers
 TODO: Add section about class-conditioned generation and choice of dataset.
 
 ## Getting Started
+This section helps you to set up your training environment and get your first training run started. If you want to learn more about what diffusion exactly is and how it works, check out the [Notebooks](#notebooks) section.
 ### Using a Docker Container
 The project provides a custom Docker container so you don't have to mess with the PyTorch version and it's CUDA dependencies. If you want to run the code directly on your machine instead, you can skip this section. The Docker setup provides some quality-of-life features, such as an MLflow dashboard, a Jupyter server on port, SSH, persistent volumes so that training logs and model checkpoints keep retained and datasets don't have to be redownloaded at every restart of the container. Furthermore, the setup script pulls the repo on container boot-up so that it always works with the latest code without rebuilding the image.
 
@@ -81,7 +82,6 @@ pip install -r requirements.txt
 
 ### Downloading and Preprocessing the Data
 Now download and transform the CIFAR-10 data. 
-TODO: Deeper explanation what's happening behind the scenes.
 ```bash
 python preprocessing/encode_cifar.py
 ```
@@ -132,6 +132,14 @@ python train/train.py batch_size=128
 ```
 
 You can find more information about Hydra CLI functionalities here: [Basic Override Syntax | Hydra](https://hydra.cc/docs/advanced/override_grammar/basic/)
+
+## Notebooks
+The repo comes with some notebooks that make your journey into diffusion easier. 
+| Notebook | Content |
+|---|---|
+|`notebooks/diffusion.ipynb`| A general introduction into the mathematical framework of diffusion. Rather than explaining model architectures and training techniques, this notebook focuses on giving an illustrated and intuitive picture of the framework, its modeling, and different proceddings in the field. A great start to your diffusion journey, where you only need basic understanding of mathematics and ML to dive to understand how diffusion actually works. |
+|`notebooks/noise_scheduling.ipynb`| A technical explanation of noising scheduling, the pitfalls, and how the choice of different approaches impact the model performance. How we destroy information in our target data to create the data points from which our models learn to generate the original data is paramount to the training efficiency and final output quality of our models. This notebook builds with plots and illustrations your intuition of the noising process. |
+|`notebooks/model_inference.ipynb`| A notebook that contains plots to play around with models you trained yourself. If you want to check out how a model check point behaves, use this notebook to load and infere it.|
 
 ## What's Included
 All the essential parts are implemented in pure PyTorch for maximal tweakability. 
