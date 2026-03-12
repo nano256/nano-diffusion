@@ -10,8 +10,6 @@ While transformers dominate ML discourse, diffusion models have quietly achieved
 
 The repo contains a Diffusion Transformer (DiT) model, trainer, noise schedulers, and sampler, all written as a minimalist PyTorch implementation so that you can check out the what the code does and tweak it.
 
-TODO: Add section about class-conditioned generation and choice of dataset.
-
 ## Getting Started
 This section helps you to set up your training environment and get your first training run started. If you want to learn more about what diffusion exactly is and how it works, check out the [Notebooks](#notebooks) section.
 ### Using a Docker Container
@@ -135,11 +133,11 @@ You can find more information about Hydra CLI functionalities here: [Basic Overr
 
 ## Notebooks
 The repo comes with some notebooks that make your journey into diffusion easier. 
-| Notebook | Content |
-|---|---|
-|`notebooks/diffusion.ipynb`| A general introduction into the mathematical framework of diffusion. Rather than explaining model architectures and training techniques, this notebook focuses on giving an illustrated and intuitive picture of the framework, its modeling, and different proceddings in the field. A great start to your diffusion journey, where you only need basic understanding of mathematics and ML to dive to understand how diffusion actually works. |
-|`notebooks/noise_scheduling.ipynb`| A technical explanation of noising scheduling, the pitfalls, and how the choice of different approaches impact the model performance. How we destroy information in our target data to create the data points from which our models learn to generate the original data is paramount to the training efficiency and final output quality of our models. This notebook builds with plots and illustrations your intuition of the noising process. |
-|`notebooks/model_inference.ipynb`| A notebook that contains plots to play around with models you trained yourself. If you want to check out how a model check point behaves, use this notebook to load and infere it.|
+| Notebook | Content | Colab Link |
+|---|---|---|
+|`notebooks/diffusion.ipynb`| A general introduction into the mathematical framework of diffusion. Rather than explaining model architectures and training techniques, this notebook focuses on giving an illustrated and intuitive picture of the framework, its modeling, and different proceddings in the field. A great start to your diffusion journey, where you only need basic understanding of mathematics and ML to dive to understand how diffusion actually works. | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nano256/nano-diffusion/blob/main/notebooks/diffusion.ipynb)|
+|`notebooks/noise_scheduling.ipynb`| A technical explanation of noising scheduling, the pitfalls, and how the choice of different approaches impact the model performance. How we destroy information in our target data to create the data points from which our models learn to generate the original data is paramount to the training efficiency and final output quality of our models. This notebook builds with plots and illustrations your intuition of the noising process. | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nano256/nano-diffusion/blob/main/notebooks/noise_scheduling.ipynb)|
+|`notebooks/model_inference.ipynb`| A notebook that contains plots to play around with models you trained yourself. If you want to check out how a model check point behaves, use this notebook to load and infere it.| [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/nano256/nano-diffusion/blob/main/notebooks/model_inference.ipynb)|
 
 ## What's Included
 All the essential parts are implemented in pure PyTorch for maximal tweakability. 
