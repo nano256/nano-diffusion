@@ -234,6 +234,7 @@ class NanoDiffusionTrainer:
                     },
                     step,
                 )
+                lr_scheduler.step()
 
             # Validation and checkpointing
             avg_val_loss = None
@@ -296,5 +297,3 @@ class NanoDiffusionTrainer:
                     avg_val_loss if avg_val_loss is not None else loss.detach().item()
                 )
                 self.save_checkpoint(epoch, optimizer, lr_scheduler, current_loss)
-
-            lr_scheduler.step()
