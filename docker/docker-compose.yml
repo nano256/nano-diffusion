@@ -1,7 +1,7 @@
 name: nano-diffusion
 services:
   workspace:
-    image: ghcr.io/${REPO_NAME}:0.1.3
+    image: ghcr.io/${REPO_NAME}:0.1.4
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,6 +11,9 @@ services:
       - "5000:5000"
     volumes:
       - workspace:/workspace
+      # Mount setup files so changes don't need a image rebuild
+      - ./setup.sh:/setup.sh:ro  
+      - ./config.sh:/config.sh:ro
       # - ../data:/workspace/repo/data
       # - ../models:/workspace/repo/models
     deploy:

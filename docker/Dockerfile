@@ -37,13 +37,8 @@ RUN bash
 
 WORKDIR /
 
-# Copy scripts into container
-COPY setup.sh /setup.sh
-COPY config.sh /config.sh
-
-# Make setup script executable
-RUN chmod +x /setup.sh
-
+# setup.sh and config.sh are mounted via docker-compose.yml so that changing
+# them doesn't necessitae a image rebuild. 
 # Execute setup script at runtime because it does things in the persistent 
 # volume and relies on secrets provided through the env
 ENTRYPOINT ["/setup.sh"]
