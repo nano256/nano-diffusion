@@ -96,7 +96,7 @@ def encode_images(dataloader: DataLoader, vae):
     latent_list = []
     class_list = []
 
-    for images, classes in tqdm(dataloader):
+    for images, classes in tqdm.tqdm(dataloader):
         with torch.no_grad():
             latents = (
                 vae.encode(images).latent_dist.sample() * vae.config.scaling_factor
