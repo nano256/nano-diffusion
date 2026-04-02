@@ -13,7 +13,6 @@ services:
       - workspace:/workspace
       # - ../data:/workspace/repo/data
       # - ../models:/workspace/repo/models
-    # TODO: Fix the deployment on my dev ML rig so that it works with this GPU config
     deploy:
       resources:
         reservations:
