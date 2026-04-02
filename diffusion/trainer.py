@@ -8,6 +8,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 
+from diffusion.ema import EMAModel
 from diffusion.noise_schedulers import AbstractNoiseScheduler
 from diffusion.samplers import DDIMSampler
 from diffusion.utils import decode_latents
@@ -33,7 +34,7 @@ class NanoDiffusionTrainer:
         validation_context: Optional list of class labels to generate during validation
         fixed_validation_noise: If True, uses the same noise seed across all validation
             epochs for consistent sample comparison.
-
+        ema_model: EMA weights model
     """
 
     def __init__(
@@ -49,6 +50,7 @@ class NanoDiffusionTrainer:
         vae=None,
         validation_context: list[int] | None = None,
         fixed_validation_noise: bool = False,
+        ema_model: EMAModel = None,
     ):
         self.model = model
         self.noise_scheduler = noise_scheduler
@@ -64,6 +66,7 @@ class NanoDiffusionTrainer:
             None if validation_context is None else torch.tensor(validation_context)
         )
         self.fixed_validation_noise = fixed_validation_noise
+        self.ema_model = ema_model
 
         self.best_val_loss = float("inf")
         self.saved_checkpoints = []  # Track saved checkpoint paths
@@ -72,11 +75,13 @@ class NanoDiffusionTrainer:
         # Create checkpoint directory
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
-    def compute_loss(self, batch: tuple[Tensor]):
+    def compute_loss(self, batch: tuple[Tensor], with_ema_weights=False):
         """Compute diffusion training loss for a batch.
 
         Args:
             batch: Tuple of (latents, context), shapes: (B, C, H, W) and (B,)
+            with_ema_weights: Uses EMA weights for computation
+
 
         Returns:
             MSE loss between predicted and actual noise
@@ -94,7 +99,10 @@ class NanoDiffusionTrainer:
         noised_latents = self.noise_scheduler(
             latents, timesteps, noise, return_noise=False
         )
-        pred_noise = self.model(noised_latents, timesteps, context)
+        if with_ema_weights:
+            pred_noise = self.ema_model.model(noised_latents, timesteps, context)
+        else:
+            pred_noise = self.model(noised_latents, timesteps, context)
         loss = self.loss_fn(pred_noise, noise)
 
         if torch.isnan(loss):
@@ -135,6 +143,9 @@ class NanoDiffusionTrainer:
             "best_val_loss": self.best_val_loss,
         }
 
+        if self.ema_model is not None:
+            checkpoint["ema_model_state_dict"] = self.ema_model.state_dict()
+
         if is_best:
             checkpoint_path = self.checkpoint_dir / f"best_model_epoch_{epoch:04d}.pt"
             torch.save(checkpoint, checkpoint_path)
@@ -158,6 +169,7 @@ class NanoDiffusionTrainer:
         checkpoint_path: Path | str,
         optimizer: Optimizer | None = None,
         lr_scheduler: LRScheduler | None = None,
+        ema_model: EMAModel | None = None,
     ):
         """Load training checkpoint from file.
 
@@ -182,6 +194,9 @@ class NanoDiffusionTrainer:
 
         if lr_scheduler is not None and "lr_scheduler_state_dict" in checkpoint:
             lr_scheduler.load_state_dict(checkpoint["lr_scheduler_state_dict"])
+
+        if ema_model is not None and "ema_model_state_dict" in checkpoint:
+            ema_model.load_state_dict(checkpoint["ema_model_state_dict"])
 
         self.best_val_loss = checkpoint.get("best_val_loss", float("inf"))
 
@@ -235,16 +250,25 @@ class NanoDiffusionTrainer:
                     step,
                 )
                 lr_scheduler.step()
+                if self.ema_model is not None:
+                    self.ema_model.update(self.model)
 
             # Validation and checkpointing
             avg_val_loss = None
+            avg_val_loss_ema = None
             if val_dataloader is not None and epoch % self.validation_interval == 0:
                 with torch.no_grad():
                     val_losses = []
+                    val_losses_ema = []
                     for batch in val_dataloader:
                         val_losses.append(self.compute_loss(batch).item())
+                        val_losses_ema.append(
+                            self.compute_loss(batch, with_ema_weights=True).item()
+                        )
                     avg_val_loss = sum(val_losses) / len(val_losses)
+                    avg_val_loss_ema = sum(val_losses_ema) / len(val_losses_ema)
                     mlflow.log_metric("loss_val", avg_val_loss, step)
+                    mlflow.log_metric("loss_val_ema", avg_val_loss_ema, step)
 
                     # Save best model if validation loss improved
                     if avg_val_loss < self.best_val_loss and epoch != 0:
@@ -268,7 +292,10 @@ class NanoDiffusionTrainer:
                 self.model.eval()
                 with torch.no_grad():
                     sampler = DDIMSampler(
-                        self.model, self.noise_scheduler, 1000, self.num_sampling_steps
+                        self.model if self.ema_model is None else self.ema_model.model,
+                        self.noise_scheduler,
+                        1000,
+                        self.num_sampling_steps,
                     )
                     # Generates new initial noise every generation if
                     # fixed_validation_noise is False, otherwise keeps the

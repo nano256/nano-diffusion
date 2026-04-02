@@ -17,6 +17,9 @@ model:
   in_channels: 16
   dropout: 0.0
   device: null
+ema_model:
+  decay: 0.9999
+  warmup_steps: 1000
 trainer:
   num_sampling_steps: 50
   loss_fn: "mse_loss"

@@ -1,5 +1,6 @@
 """Nano Diffusion - Educational diffusion model implementation."""
 
+from .ema import EMAModel
 from .model import NanoDiffusionModel
 from .modules import (
     AdaLNSingle,

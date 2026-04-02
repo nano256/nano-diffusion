@@ -1,5 +1,5 @@
 experiment_name: "cifar10"
-epochs: 1000
+epochs: 2000
 num_timesteps: 1000
 batch_size: 256
 data_dtype: float32
@@ -15,8 +15,11 @@ model:
   num_timesteps: ${num_timesteps}
   vae_name: "ostris/vae-kl-f8-d16"
   in_channels: 16
-  dropout: 0.0
+  dropout: 0.1
   device: null
+ema_model:
+  decay: 0.9999
+  warmup_steps: 1000
 trainer:
   num_sampling_steps: 50
   loss_fn: "mse_loss"
@@ -32,7 +35,9 @@ optimizer:
   type: "AdamW"
 lr_scheduler:
   type: "CosineAnnealingLR"
-  T_max: 100
+  # Make this equivalent to the number iterations, i.e. epochs*dataset_samples/batch_size
+  # For CIFAR10 50000/batch_size
+  T_max: 390000
   # This avoids Hydra from logging runs
 hydra:  
   output_subdir: null  

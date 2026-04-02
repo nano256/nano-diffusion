@@ -28,6 +28,7 @@ from torch.utils.data import DataLoader, TensorDataset
 sys.path.append(str(Path(__file__).parent.parent))
 
 import diffusion
+from diffusion.ema import EMAModel
 from diffusion.model import NanoDiffusionModel
 from diffusion.trainer import NanoDiffusionTrainer
 from diffusion.utils import get_available_device, get_kwargs, slugify
@@ -122,6 +123,11 @@ def train(cfg):
     lr_scheduler = getattr(torch.optim.lr_scheduler, cfg.lr_scheduler.type)
     lr_scheduler = lr_scheduler(optimizer, **get_kwargs(cfg.lr_scheduler))
 
+    if cfg.ema_model.decay is not None:
+        ema_model = EMAModel(model, **get_kwargs(cfg.ema_model))
+    else:
+        ema_model = None
+
     # Only load VAE if we do sanity check image generation throughout the run
     if cfg.trainer.validation_context is not None:
         # Load VAE to CPU to not clog up the GPU during training
@@ -146,7 +152,12 @@ def train(cfg):
         )
 
         trainer = NanoDiffusionTrainer(
-            model, noise_scheduler, checkpoint_dir, vae=vae, **cfg.trainer
+            model,
+            noise_scheduler,
+            checkpoint_dir,
+            vae=vae,
+            ema_model=ema_model,
+            **cfg.trainer,
         )
 
         print("Starting training...")
