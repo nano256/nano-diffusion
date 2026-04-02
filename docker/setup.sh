@@ -99,6 +99,9 @@ fi
 echo "Activating virtual environment..."
 source "$VENV_PATH/bin/activate"
 
+# Clone or pull nano diffusion repo
+download_or_pull_repo "$REPO_NAME" "$REPO_PATH"
+
 # Set Jupyter password from env var if set
 if [ -z "$JUPYTER_PASSWORD" ]; then
   echo "No Jupyter password set, skipping..."
@@ -110,9 +113,6 @@ else
   echo "{\"ServerApp\": {\"password\": \"$PASSWORD_HASH\"}}" > ~/.jupyter/jupyter_server_config.json
   jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root &
 fi
-
-# Clone or pull nano diffusion repo
-download_or_pull_repo "$REPO_NAME" "$REPO_PATH"
 
 # Start mlflow inside of the repo root dir
 cd "$REPO_PATH"
