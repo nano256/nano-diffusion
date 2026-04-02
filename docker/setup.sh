@@ -111,6 +111,11 @@ else
   PASSWORD_HASH=$(python3 -c "from jupyter_server.auth import passwd; print(passwd('$JUPYTER_PASSWORD'))")
   mkdir -p ~/.jupyter
   echo "{\"ServerApp\": {\"password\": \"$PASSWORD_HASH\"}}" > ~/.jupyter/jupyter_server_config.json
+  
+  # Register the venv as a Jupyter kernel
+  echo "Registering venv as Jupyter kernel..."
+  python3 -m ipykernel install --user --name=nano-diffusion --display-name="Python (nano-diffusion)"
+  
   jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root &
 fi
 

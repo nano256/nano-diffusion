@@ -1,5 +1,6 @@
 diffusers
 hydra-core
+ipykernel
 nbstripout
 Pillow
 tqdm
