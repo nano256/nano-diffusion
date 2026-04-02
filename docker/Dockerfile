@@ -41,6 +41,6 @@ WORKDIR /
 # them doesn't necessitae a image rebuild. 
 # Execute setup script at runtime because it does things in the persistent 
 # volume and relies on secrets provided through the env
-ENTRYPOINT ["/setup.sh"]
+ENTRYPOINT ["/bin/bash", "/setup.sh"]
 # Start SSH service and keep container running for shell access
 CMD ["/bin/bash", "-c", "service ssh start && while true; do sleep 30; done"]
