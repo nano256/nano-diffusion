@@ -262,13 +262,16 @@ class NanoDiffusionTrainer:
                     val_losses_ema = []
                     for batch in val_dataloader:
                         val_losses.append(self.compute_loss(batch).item())
-                        val_losses_ema.append(
-                            self.compute_loss(batch, with_ema_weights=True).item()
-                        )
+                        if self.ema_model is not None:
+                            val_losses_ema.append(
+                                self.compute_loss(batch, with_ema_weights=True).item()
+                            )
                     avg_val_loss = sum(val_losses) / len(val_losses)
-                    avg_val_loss_ema = sum(val_losses_ema) / len(val_losses_ema)
                     mlflow.log_metric("loss_val", avg_val_loss, step)
-                    mlflow.log_metric("loss_val_ema", avg_val_loss_ema, step)
+
+                    if self.ema_model is not None:
+                        avg_val_loss_ema = sum(val_losses_ema) / len(val_losses_ema)
+                        mlflow.log_metric("loss_val_ema", avg_val_loss_ema, step)
 
                     # Save best model if validation loss improved
                     if avg_val_loss < self.best_val_loss and epoch != 0:

@@ -93,16 +93,18 @@ model:
 # ============================================================================
 # EXPONENTIAL MOVING AVERAGE (EMA) CONFIGURATION
 # ============================================================================
+# To disable EMA entirely, remove this entire section or set decay to null
 ema_model:
   # EMA decay rate for smoothing model weights
   # Higher values (closer to 1.0) = slower smoothing, more stable
   # Common values: 0.9999, 0.999, 0.995
   # EMA helps stabilize diffusion model training and improves sample quality
+  # Set to null to disable EMA
   decay: 0.9999
 
-  # Number of training steps before EMA starts (warmup period)
-  # During warmup, EMA weights are initialized from the current model
-  # Prevents EMA from being dominated by poor early-training weights
+  # Number of training steps before EMA reaches full decay rate
+  # During warmup, decay linearly ramps from 0 to the target decay value
+  # This prevents EMA from being dominated by poor early-training weights
   warmup_steps: 1000
 
 # ============================================================================

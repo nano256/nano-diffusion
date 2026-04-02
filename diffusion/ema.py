@@ -13,8 +13,11 @@ class EMAModel:
         self.model.requires_grad_(False)
 
     def _effective_decay(self):
-        # ramps from ~0 to self.decay over warmup_steps
-        return min(self.decay, (1 + self.step) / (self.warmup_steps + self.step))
+        # Linearly ramps from 0 to self.decay over warmup_steps
+        if self.step >= self.warmup_steps:
+            return self.decay
+        else:
+            return self.decay * self.step / self.warmup_steps
 
     @torch.no_grad()
     def update(self, model):
