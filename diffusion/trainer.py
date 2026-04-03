@@ -7,6 +7,7 @@ from torch import Tensor, nn
 from torch.optim.lr_scheduler import LRScheduler
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from diffusion.ema import EMAModel
 from diffusion.noise_schedulers import AbstractNoiseScheduler
@@ -226,7 +227,7 @@ class NanoDiffusionTrainer:
         latent_shape = None
         validation_noise = None
 
-        for epoch in range(epochs):
+        for epoch in tqdm(range(epochs)):
             num_prev_batches = epoch * len(train_dataloader)
             for batch_idx, batch in enumerate(train_dataloader):
                 # Grab the latent shape for image generation sanity checks later
