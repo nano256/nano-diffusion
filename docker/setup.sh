@@ -121,9 +121,11 @@ fi
 
 # Start mlflow inside of the repo root dir
 cd "$REPO_PATH"
-# The allowed-hosts flag is set to all ("*"), because otherwise mlflow blocks 
+# The allowed-hosts flag is set to all ("*"), because otherwise mlflow blocks
 # access from other host headers
-mlflow server --host 0.0.0.0 --port 5000 --allowed-hosts "*" &
+# --workers 1 prevents SQLite database lock issues with concurrent access
+# --serve-artifacts enables artifact serving
+mlflow server --host 0.0.0.0 --port 5000 --allowed-hosts "*" --workers 1 --serve-artifacts &
 
 # Go back to root dir to ensure consistency for running CMD
 cd "/"

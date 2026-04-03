@@ -30,6 +30,7 @@ services:
       - JUPYTER_PASSWORD=${JUPYTER_PASSWORD}
       - SSH_USER_PASSWORD=${SSH_USER_PASSWORD}
       - SSH_ROOT_PASSWORD=${SSH_ROOT_PASSWORD}
+      - MLFLOW_ENABLE_PROXY_FIX=true
     stdin_open: true
     tty: true
 volumes:
