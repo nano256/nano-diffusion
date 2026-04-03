@@ -110,19 +110,11 @@ def train(cfg):
     )
 
     model = NanoDiffusionModel(cfg.model).to(device)
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
-
-    # Create EMA before compiling the model to avoid deepcopy issues with compiled models
-    if hasattr(cfg, 'ema_model') and cfg.ema_model.decay is not None:
-        ema_model = EMAModel(model, **get_kwargs(cfg.ema_model))
-    else:
-        ema_model = None
-
     # PyTorch fuses operations where possible in the model computation graph.
     # Significanlty speeds up training, but limited support on MPS.
     if device.type == "cuda":
         model = torch.compile(model)
-
+    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
     noise_scheduler = getattr(diffusion.noise_schedulers, cfg.noise_scheduler.type)
     noise_scheduler = noise_scheduler(cfg.noise_scheduler)
     # Pop the optimizer type so it doesn't interfere with its own kwargs afterwards
@@ -130,6 +122,11 @@ def train(cfg):
     optimizer = optimizer(model.parameters(), **get_kwargs(cfg.optimizer))
     lr_scheduler = getattr(torch.optim.lr_scheduler, cfg.lr_scheduler.type)
     lr_scheduler = lr_scheduler(optimizer, **get_kwargs(cfg.lr_scheduler))
+
+    if cfg.ema_model.decay is not None:
+        ema_model = EMAModel(model, **get_kwargs(cfg.ema_model))
+    else:
+        ema_model = None
 
     # Only load VAE if we do sanity check image generation throughout the run
     if cfg.trainer.validation_context is not None:
@@ -159,8 +156,7 @@ def train(cfg):
             noise_scheduler,
             checkpoint_dir,
             vae=vae,
-            ema_model=ema_model,
-            **cfg.trainer,
+            ema_model=ema_model**cfg.trainer,
         )
 
         print("Starting training...")
