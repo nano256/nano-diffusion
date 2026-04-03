@@ -2,10 +2,10 @@ import re
 import unicodedata
 
 import torch
-import tqdm
 from PIL import Image
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 
 def create_mlp(
@@ -96,7 +96,7 @@ def encode_images(dataloader: DataLoader, vae):
     latent_list = []
     class_list = []
 
-    for images, classes in tqdm.tqdm(dataloader):
+    for images, classes in tqdm(dataloader):
         with torch.no_grad():
             latents = (
                 vae.encode(images).latent_dist.sample() * vae.config.scaling_factor
