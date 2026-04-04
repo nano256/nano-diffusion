@@ -98,6 +98,7 @@ def encode_images(dataloader: DataLoader, vae):
 
     for images, classes in tqdm(dataloader):
         with torch.no_grad():
+            images = images.to(vae.device)
             latents = (
                 vae.encode(images).latent_dist.sample() * vae.config.scaling_factor
             )
@@ -133,7 +134,7 @@ def decode_latents(latents: Tensor, vae):
     ]
 
 
-class TensorDeviceConvertor:
+class TensorDtypeConvertor:
     """Convert tensors to a specific device and dtype.
 
     Utility class for PyTorch dataset transforms. Used to move tensors
@@ -148,14 +149,11 @@ class TensorDeviceConvertor:
         dtype: Target data type
     """
 
-    def __init__(
-        self, device: torch.device | None = None, dtype: torch.dtype | None = None
-    ):
-        self.device = device
+    def __init__(self, dtype: torch.dtype | None = None):
         self.dtype = dtype
 
     def __call__(self, tensor):
-        return tensor.to(device=self.device, dtype=self.dtype)
+        return tensor.to(dtype=self.dtype)
 
 
 class TensorCifarNormalizer:

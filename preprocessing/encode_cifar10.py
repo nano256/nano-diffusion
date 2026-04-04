@@ -30,7 +30,7 @@ from torchvision.datasets import CIFAR10
 
 from diffusion.utils import (
     TensorCifarNormalizer,
-    TensorDeviceConvertor,
+    TensorDtypeConvertor,
     encode_images,
     get_available_device,
 )
@@ -56,7 +56,7 @@ def encode_and_save_cifar10_latents(cfg):
     # CPUs are much slower in float16 than in float32,
     # therefore we convert the tensors at the end.
     if device == torch.device("cpu"):
-        final_dtype = cfg.dtype
+        final_dtype = dtype
         dtype = torch.float32
 
     data_dir = Path(__file__).parent.parent / "data"
@@ -74,7 +74,7 @@ def encode_and_save_cifar10_latents(cfg):
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
-            TensorDeviceConvertor(device, dtype),
+            TensorDtypeConvertor(dtype),
             TensorCifarNormalizer(),
         ]
     )
