@@ -1,3 +1,4 @@
+aim
 diffusers
 hydra-core
 ipykernel
@@ -7,5 +8,4 @@ tqdm
 typer
 plotly
 pytest
-mlflow
 -e .
