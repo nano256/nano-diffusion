@@ -322,6 +322,13 @@ class NanoDiffusionTrainer:
                     aim_run.track(image, f"gen_{context.item()}", step)
                 self.model.train()
 
+                if self.ema_model is not None:
+                    images = self._get_validation_generations(
+                        self.ema_model.model, latent_shape, validation_noise
+                    )
+                    for image, context in zip(images, self.validation_context):
+                        aim_run.track(image, f"gen_ema_{context.item()}", step)
+
             # Save regular checkpoint every N epochs
             if epoch % self.save_every_n_epochs == 0 or epoch == epochs - 1:
                 current_loss = (
