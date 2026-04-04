@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import mlflow
+import aim
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
@@ -16,11 +16,11 @@ from diffusion.utils import decode_latents
 
 
 class NanoDiffusionTrainer:
-    """Trainer for diffusion models with MLflow logging and checkpointing.
+    """Trainer for diffusion models with aim logging and checkpointing.
 
     Handles the complete training loop including loss computation, validation,
     model checkpointing, and optional image generation for monitoring. Integrates
-    with MLflow for experiment tracking.
+    with aim for experiment tracking.
 
     Args:
         model: The diffusion model to train
@@ -203,24 +203,53 @@ class NanoDiffusionTrainer:
 
         return checkpoint["epoch"], checkpoint["loss"]
 
+    def _get_validation_generations(self, model, latent_shape, validation_noise):
+        model_device = next(model.parameters()).device
+        vae_device = next(self.vae.parameters()).device
+        with torch.no_grad():
+            sampler = DDIMSampler(
+                model,
+                self.noise_scheduler,
+                1000,
+                self.num_sampling_steps,
+            )
+            # Generates new initial noise every generation if
+            # fixed_validation_noise is False, otherwise keeps the
+            # same for every generation throughout the training run.
+            if validation_noise is None or self.fixed_validation_noise is False:
+                validation_noise = torch.randn(
+                    self.validation_context.shape[0], *latent_shape
+                ).to(model_device)
+
+            latents = sampler.sample(
+                validation_noise, self.validation_context.to(model_device)
+            ).to(vae_device)
+
+            images = decode_latents(latents, self.vae)
+            # Needed to make them logable with aim
+            images = [aim.Image(image) for image in images]
+            return images
+
     def train(
         self,
         epochs: int,
         optimizer: Optimizer,
         lr_scheduler: LRScheduler,
+        aim_run: aim.Run,
         train_dataloader: DataLoader,
         val_dataloader: DataLoader | None = None,
     ):
         """Execute the training loop.
 
         Runs training for the specified number of epochs, logging training and
-        validation metrics in MLflow, checkpointing, and optional image generation
+        validation metrics in aim, checkpointing, and optional image generation
         for validation purposes.
 
         Args:
             epochs: Number of epochs to train
             optimizer: PyTorch optimizer
             lr_scheduler: Learning rate scheduler
+            aim_run: Aim run logger
             train_dataloader: DataLoader for training data, providing (latents, context) tuples
             val_dataloader: Optional DataLoader for validation data
         """
@@ -240,16 +269,10 @@ class NanoDiffusionTrainer:
                 loss.backward()
                 optimizer.step()
 
-                # Log everything. Assumes mlflow run is already started, if not it
-                # just starts an unlabeled run.
                 # Detach loss tensor first to suppress scalar conversion warning.
-                mlflow.log_metrics(
-                    {
-                        "loss_train": loss.detach().item(),
-                        "learning_rate": optimizer.param_groups[0]["lr"],
-                    },
-                    step,
-                )
+                aim_run.track(loss.detach().item(), "loss_train", step)
+                aim_run.track(optimizer.param_groups[0]["lr"], "learning_rate", step)
+
                 lr_scheduler.step()
                 if self.ema_model is not None:
                     self.ema_model.update(self.model)
@@ -268,11 +291,11 @@ class NanoDiffusionTrainer:
                                 self.compute_loss(batch, with_ema_weights=True).item()
                             )
                     avg_val_loss = sum(val_losses) / len(val_losses)
-                    mlflow.log_metric("loss_val", avg_val_loss, step)
+                    aim_run.track(avg_val_loss, "loss_val", step)
 
                     if self.ema_model is not None:
                         avg_val_loss_ema = sum(val_losses_ema) / len(val_losses_ema)
-                        mlflow.log_metric("loss_val_ema", avg_val_loss_ema, step)
+                    aim_run.track(avg_val_loss_ema, "loss_val_ema", step)
 
                     # Save best model if validation loss improved
                     if avg_val_loss < self.best_val_loss and epoch != 0:
@@ -291,35 +314,12 @@ class NanoDiffusionTrainer:
                 and self.vae is not None
                 and epoch % self.validation_interval == 0
             ):
-                model_device = next(self.model.parameters()).device
-                vae_device = next(self.vae.parameters()).device
                 self.model.eval()
-                with torch.no_grad():
-                    sampler = DDIMSampler(
-                        self.model if self.ema_model is None else self.ema_model.model,
-                        self.noise_scheduler,
-                        1000,
-                        self.num_sampling_steps,
-                    )
-                    # Generates new initial noise every generation if
-                    # fixed_validation_noise is False, otherwise keeps the
-                    # same for every generation throughout the training run.
-                    if validation_noise is None or self.fixed_validation_noise is False:
-                        validation_noise = torch.randn(
-                            self.validation_context.shape[0], *latent_shape
-                        ).to(model_device)
-
-                    latents = sampler.sample(
-                        validation_noise, self.validation_context.to(model_device)
-                    ).to(vae_device)
-
-                    images = decode_latents(latents, self.vae)
-                    for image, context in zip(images, self.validation_context):
-                        mlflow.log_image(
-                            image,
-                            key=f"{context.item()}",
-                            step=step,
-                        )
+                images = self._get_validation_generations(
+                    self.model, latent_shape, validation_noise
+                )
+                for image, context in zip(images, self.validation_context):
+                    aim_run.track(image, f"gen_{context.item()}", step)
                 self.model.train()
 
             # Save regular checkpoint every N epochs

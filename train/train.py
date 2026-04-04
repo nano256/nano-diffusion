@@ -3,7 +3,7 @@
 This script handles the complete training pipeline:
 1. Loads pre-encoded CIFAR-10 latents
 2. Initializes model, optimizer, and noise scheduler
-3. Sets up MLflow experiment tracking
+3. Sets up aim experiment tracking
 4. Runs training via NanoDiffusionTrainer
 5. Saves checkpoints and logs metrics
 
@@ -18,8 +18,8 @@ provided in the README of the repository.
 import sys
 from pathlib import Path
 
+import aim
 import hydra
-import mlflow
 import torch
 from diffusers.models import AutoencoderKL
 from omegaconf import OmegaConf
@@ -68,6 +68,7 @@ def create_dataloaders(
 def train(cfg):
     # This resolves any variable-based config and avoids later problems when copying the config
     OmegaConf.resolve(cfg)
+
     device = (
         get_available_device()
         if cfg.model.device is None
@@ -133,41 +134,36 @@ def train(cfg):
         # Load VAE to CPU to not clog up the GPU during training
         vae = AutoencoderKL.from_pretrained(cfg.model.vae_name).to("cpu").eval()
 
-    mlflow.enable_system_metrics_logging()
-    mlflow.set_experiment(cfg.experiment_name)
+    aim_run = aim.Run(
+        experiment=cfg.experiment_name,
+        system_tracking_interval=1,
+        log_system_params=True,
+    )
 
-    with mlflow.start_run():
-        run = mlflow.active_run()
-        checkpoint_dir = Path(
-            f"./models/{slugify(cfg.experiment_name)}/{run.info.run_name}"
-        ).resolve()
+    aim_run["config"] = cfg
 
-        mlflow.log_params(
-            {
-                "epochs": cfg.epochs,
-                "device": device,
-                "debug": cfg.debug,
-                "checkpoint_dir": str(checkpoint_dir),
-            }
-        )
+    checkpoint_dir = Path(
+        f"./models/{slugify(cfg.experiment_name)}/{aim_run.hash}"
+    ).resolve()
 
-        trainer = NanoDiffusionTrainer(
-            model,
-            noise_scheduler,
-            checkpoint_dir,
-            vae=vae,
-            ema_model=ema_model**cfg.trainer,
-        )
+    trainer = NanoDiffusionTrainer(
+        model,
+        noise_scheduler,
+        checkpoint_dir,
+        vae=vae,
+        ema_model=ema_model,
+        **cfg.trainer,
+    )
 
-        print("Starting training...")
-        trainer.train(
-            epochs=cfg.epochs,
-            optimizer=optimizer,
-            lr_scheduler=lr_scheduler,
-            train_dataloader=train_loader,
-            val_dataloader=val_loader,
-        )
-
+    print("Starting training...")
+    trainer.train(
+        epochs=cfg.epochs,
+        optimizer=optimizer,
+        lr_scheduler=lr_scheduler,
+        aim_run=aim_run,
+        train_dataloader=train_loader,
+        val_dataloader=val_loader,
+    )
     print("Training completed!")
 
 

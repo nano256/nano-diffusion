@@ -10,7 +10,7 @@
 # TOP-LEVEL CONFIGURATION
 # ============================================================================
 
-# Name of the MLflow experiment (used for organizing runs)
+# Name of the experiment (used for organizing runs)
 experiment_name: "cifar10"
 
 # Number of training epochs
@@ -136,7 +136,7 @@ trainer:
   keep_n_checkpoints: 3
 
   # List of class labels to generate during validation
-  # Generates one sample per class and logs to MLflow
+  # Generates one sample per class and logs it
   # Set to null to disable validation image generation (speeds up training)
   # For CIFAR-10, classes are: 0=airplane, 1=automobile, 2=bird, 3=cat,
   # 4=deer, 5=dog, 6=frog, 7=horse, 8=ship, 9=truck
