@@ -10,6 +10,7 @@ mlruns/
 mlflow.db
 mlflow.db-journal
 models/
+.aim/
 
 # IDE and AI helper settings
 .vscode
