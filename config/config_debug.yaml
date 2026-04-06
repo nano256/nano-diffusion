@@ -2,8 +2,10 @@ experiment_name: "cifar10_debug"
 epochs: 10
 num_timesteps: 1000
 batch_size: 256
-data_dtype: float32
 debug: True
+data:
+  dtype: float32
+  augment: True
 model:
   patch_size: 2
   hidden_dim: 384
@@ -24,6 +26,7 @@ trainer:
   num_sampling_steps: 50
   loss_fn: "mse_loss"
   validation_interval: 2
+  patience: 20
   save_every_n_epochs: 2
   keep_n_checkpoints: 2
   # Check all classes

@@ -22,13 +22,21 @@ num_timesteps: 1000
 # Batch size for training and validation
 batch_size: 256
 
-# Data type for latents (options: float32, float16)
-# Note: float16 may cause training instability
-data_dtype: float32
-
 # Debug mode: if True, uses a small subset of data for quick testing
 # (loads from data/cifar10_latents_debug/ instead of data/cifar10_latents/)
 debug: False
+
+# ============================================================================
+# DATA CONFIGURATION
+# ============================================================================
+data:
+  # Data type for latents (options: float32, float16)
+  # Note: float16 may cause training instability
+  dtype: float32
+
+  # Enable data augmentation during training
+  # Adds horizontally flipped copies of the images to the latent dataset
+  augment: True
 
 # ============================================================================
 # MODEL CONFIGURATION

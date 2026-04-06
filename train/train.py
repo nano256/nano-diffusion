@@ -79,22 +79,20 @@ def train(cfg):
     # Without this dataloaders with several workers throw an error.
     torch.multiprocessing.set_start_method("spawn")
 
-    try:
-        data_path = (
-            "./data/cifar10_latents_debug/cifar10_latents.pt"
-            if cfg.debug is True
-            else "./data/cifar10_latents/cifar10_latents.pt"
-        )
-        train_latents, train_labels, test_latents, test_labels = load_cifar10_latents(
-            data_path
-        )
-        print(
-            f"Loaded {len(train_latents)} training samples, {len(test_latents)} test samples"
-        )
-        print(f"Latent shape: {train_latents[0].shape}")
-    except FileNotFoundError as e:
-        print(f"Error: {e}")
-        return
+    data_path = "./data/cifar10_latents"
+    if cfg.data.augment is True:
+        data_path += "_augmented"
+    if cfg.debug is True:
+        data_path += "_debug"
+    data_path += "/cifar10_latents.pt"
+
+    train_latents, train_labels, test_latents, test_labels = load_cifar10_latents(
+        data_path
+    )
+    print(
+        f"Loaded {len(train_latents)} training samples, {len(test_latents)} test samples"
+    )
+    print(f"Latent shape: {train_latents[0].shape}")
 
     # Move data to device
     train_latents = train_latents.to(device)
@@ -115,7 +113,6 @@ def train(cfg):
     # Significanlty speeds up training, but limited support on MPS.
     if device.type == "cuda":
         model = torch.compile(model)
-    print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
     noise_scheduler = getattr(diffusion.noise_schedulers, cfg.noise_scheduler.type)
     noise_scheduler = noise_scheduler(cfg.noise_scheduler)
     # Pop the optimizer type so it doesn't interfere with its own kwargs afterwards
@@ -141,6 +138,10 @@ def train(cfg):
     )
 
     aim_run["config"] = cfg
+
+    param_count = sum(p.numel() for p in model.parameters())
+    aim_run["param_count"] = param_count
+    print(f"Model parameter count: {param_count:,}")
 
     checkpoint_dir = Path(
         f"./models/{slugify(cfg.experiment_name)}/{aim_run.hash}"
