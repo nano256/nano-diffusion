@@ -299,16 +299,21 @@ class NanoDiffusionTrainer:
 
                     if self.ema_model is not None:
                         avg_val_loss_ema = sum(val_losses_ema) / len(val_losses_ema)
-                    aim_run.track(avg_val_loss_ema, "loss_val_ema", step)
+                        aim_run.track(avg_val_loss_ema, "loss_val_ema", step)
+
+                    # When we use EMA, it is our actual metric for best model saving and early stopping
+                    tracked_loss = (
+                        avg_val_loss if self.ema_model is None else avg_val_loss_ema
+                    )
 
                     # Save best model if validation loss improved
-                    if avg_val_loss < self.best_val_loss and epoch != 0:
-                        self.best_val_loss = avg_val_loss
+                    if tracked_loss < self.best_val_loss and epoch != 0:
+                        self.best_val_loss = tracked_loss
                         self.save_checkpoint(
                             epoch,
                             optimizer,
                             lr_scheduler,
-                            avg_val_loss,
+                            tracked_loss,
                             is_best=True,
                         )
 
