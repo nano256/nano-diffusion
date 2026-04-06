@@ -126,6 +126,14 @@ trainer:
   # Set higher to speed up training, lower for more frequent monitoring
   validation_interval: 10
 
+  # Early stopping patience: stop training if validation loss doesn't improve
+  # for this many validation intervals. Set to null to disable early stopping.
+  # Note: Checks happen every validation_interval epochs, so actual patience
+  # in epochs = patience * validation_interval
+  # Example: patience=20 with validation_interval=10 means stop after 200 epochs
+  # without improvement
+  patience: 20
+
   # Save model checkpoint every N epochs
   # Checkpoints allow resuming training and tracking model evolution
   save_every_n_epochs: 10

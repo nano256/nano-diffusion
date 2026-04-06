@@ -29,6 +29,7 @@ class NanoDiffusionTrainer:
         num_sampling_steps: Number of steps for DDIM sampling during validation
         loss_fn: Loss function name from torch.nn.functional
         validation_interval: Run validation every N epochs
+        patience: Stop training run if the validation loss doesn't improve for this amount of iterations
         save_every_n_epochs: Save checkpoint every N epochs
         keep_n_checkpoints: Number of recent checkpoints to keep
         vae: Optional VAE for decoding latents to images during validation
@@ -46,6 +47,7 @@ class NanoDiffusionTrainer:
         num_sampling_steps: int,
         loss_fn: str = "mse_loss",
         validation_interval: int = 10,
+        patience: int | None = None,
         save_every_n_epochs: int = 10,
         keep_n_checkpoints: int = 3,
         vae=None,
@@ -59,6 +61,7 @@ class NanoDiffusionTrainer:
         self.num_sampling_steps = num_sampling_steps
         self.loss_fn = getattr(F, loss_fn)
         self.validation_interval = validation_interval
+        self.patience = patience
         self.save_every_n_epochs = save_every_n_epochs
         self.keep_n_checkpoints = keep_n_checkpoints
         self.vae = vae
@@ -70,6 +73,8 @@ class NanoDiffusionTrainer:
         self.ema_model = ema_model
 
         self.best_val_loss = float("inf")
+        self.intervals_since_best_val = 0
+
         self.saved_checkpoints = []  # Track saved checkpoint paths
         self.best_checkpoint = None
 
@@ -282,6 +287,7 @@ class NanoDiffusionTrainer:
             # Validation and checkpointing
             avg_val_loss = None
             avg_val_loss_ema = None
+            tracked_loss = None
 
             self.model.eval()
             if val_dataloader is not None and epoch % self.validation_interval == 0:
@@ -309,6 +315,7 @@ class NanoDiffusionTrainer:
                     # Save best model if validation loss improved
                     if tracked_loss < self.best_val_loss and epoch != 0:
                         self.best_val_loss = tracked_loss
+                        self.intervals_since_best_val = 0
                         self.save_checkpoint(
                             epoch,
                             optimizer,
@@ -316,6 +323,8 @@ class NanoDiffusionTrainer:
                             tracked_loss,
                             is_best=True,
                         )
+                    else:
+                        self.intervals_since_best_val += 1
 
             # Log some image generations as sanity check
             if (
@@ -342,3 +351,10 @@ class NanoDiffusionTrainer:
                     avg_val_loss if avg_val_loss is not None else loss.detach().item()
                 )
                 self.save_checkpoint(epoch, optimizer, lr_scheduler, current_loss)
+
+            # Early stopping: if the validation loss didn't improve for a long time, stop the run
+            if (
+                self.patience is not None
+                and self.intervals_since_best_val >= self.patience
+            ):
+                return
