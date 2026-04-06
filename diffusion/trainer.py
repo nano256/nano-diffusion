@@ -259,6 +259,8 @@ class NanoDiffusionTrainer:
         for epoch in tqdm(range(epochs)):
             num_prev_batches = epoch * len(train_dataloader)
             for batch_idx, batch in enumerate(train_dataloader):
+                # Enusre the model isn't still in eval mode from last validation
+                self.model.train()
                 # Grab the latent shape for image generation sanity checks later
                 if latent_shape is None:
                     latents, _ = batch
@@ -280,6 +282,8 @@ class NanoDiffusionTrainer:
             # Validation and checkpointing
             avg_val_loss = None
             avg_val_loss_ema = None
+
+            self.model.eval()
             if val_dataloader is not None and epoch % self.validation_interval == 0:
                 with torch.no_grad():
                     val_losses = []
@@ -314,13 +318,11 @@ class NanoDiffusionTrainer:
                 and self.vae is not None
                 and epoch % self.validation_interval == 0
             ):
-                self.model.eval()
                 images = self._get_validation_generations(
                     self.model, latent_shape, validation_noise
                 )
                 for image, context in zip(images, self.validation_context):
                     aim_run.track(image, f"gen_{context.item()}", step)
-                self.model.train()
 
                 if self.ema_model is not None:
                     images = self._get_validation_generations(
