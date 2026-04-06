@@ -90,12 +90,13 @@ def get_available_device():
         return torch.device("cpu")
 
 
-def encode_images(dataloader: DataLoader, vae):
+def encode_images(dataloader: DataLoader, vae, augment: bool = False):
     """Encode PIL images to VAE-encoded latents.
 
     Args:
         dataloader: Dataloader containing tuples of PIL images and corresponding classes
         vae: HF-wrapped image variational autoencoder
+        augment: If true, add also latents of the mirrored images to the output
 
     Returns:
         list of latents, list of corresponding classes
@@ -106,6 +107,9 @@ def encode_images(dataloader: DataLoader, vae):
     for images, classes in tqdm(dataloader):
         with torch.no_grad():
             images = images.to(vae.device)
+            if augment is True:
+                images = torch.cat([images, images.flip(-1)])
+                classes = torch.cat([classes, classes])
             latents = (
                 vae.encode(images).latent_dist.sample() * vae.config.scaling_factor
             )

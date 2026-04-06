@@ -52,7 +52,7 @@ def encode_and_save_cifar10_latents(cfg):
     torch.multiprocessing.set_start_method("spawn")
     # From config files, we can only pass primitives without additional
     # config, hence we solve the dtype like this.
-    dtype = getattr(torch, cfg.data_dtype)
+    dtype = getattr(torch, cfg.data.dtype)
     # CPUs are much slower in float16 than in float32,
     # therefore we convert the tensors at the end.
     if device == torch.device("cpu"):
@@ -83,6 +83,9 @@ def encode_and_save_cifar10_latents(cfg):
     print("Download test dataset...")
     testset = CIFAR10(root=cifar10_dir, train=False, download=True, transform=transform)
 
+    if cfg.data.augment is True:
+        output_dir_name = output_dir_name + "_augmented"
+
     if cfg.debug is True:
         trainset = Subset(trainset, torch.arange(10))
         testset = Subset(testset, torch.arange(10))
@@ -99,9 +102,9 @@ def encode_and_save_cifar10_latents(cfg):
     )
 
     print("Transform train dataset...")
-    train_latents, train_labels = encode_images(trainloader, vae)
+    train_latents, train_labels = encode_images(trainloader, vae, cfg.data.augment)
     print("Transform test dataset...")
-    test_latents, test_labels = encode_images(testloader, vae)
+    test_latents, test_labels = encode_images(testloader, vae, cfg.data.augment)
 
     # Transform the tensors to the correct dtype before saving
     if device == torch.device("cpu"):
@@ -117,6 +120,7 @@ def encode_and_save_cifar10_latents(cfg):
     }
 
     torch.save(data, output_dir / "cifar10_latents.pt")
+    print("CIFAR10 preprocessing completed!")
 
 
 if __name__ == "__main__":

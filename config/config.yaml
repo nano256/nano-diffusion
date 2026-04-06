@@ -2,8 +2,10 @@ experiment_name: "cifar10"
 epochs: 2000
 num_timesteps: 1000
 batch_size: 256
-data_dtype: float32
 debug: False
+data:
+  dtype: float32
+  augment: True
 model:
   patch_size: 2
   hidden_dim: 768
