@@ -12,6 +12,7 @@ def create_mlp(
     layer_dims: list[int],
     activation: str,
     final_activation: str | None = None,
+    dropout: float = 0.0,
     device: torch.device | str | None = None,
 ):
     """
@@ -21,6 +22,8 @@ def create_mlp(
         layer_dims: List of dimensions [input_dim, hidden1, hidden2, ..., output_dim]
         activation: Activation class (not instance) for hidden layers
         final_activation: Optional activation for final layer
+        dropout: Dropout rate applied in train mode
+        device: The device on whicht the MLp will be casted
 
     Returns:
         MLP as PyTorch module
@@ -37,6 +40,10 @@ def create_mlp(
         elif final_activation is not None:
             final_activation = getattr(nn, final_activation)
             layers.append(final_activation())
+
+        # If it is a hidden layer, add a dropout layer
+        if i != 0 and i < len(layer_dims) - 2:
+            layers.append(nn.Dropout(dropout))
 
     return nn.Sequential(*layers).to(device=device)
 

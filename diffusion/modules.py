@@ -289,7 +289,10 @@ class DiTBlock(nn.Module):
             device=device,
         )
         self.feedforward = create_mlp(
-            [hidden_dim, hidden_dim * 4, hidden_dim], activation, device=device
+            [hidden_dim, hidden_dim * 4, hidden_dim],
+            activation,
+            dropout=dropout,
+            device=device,
         )
 
     def scale_and_shift(
