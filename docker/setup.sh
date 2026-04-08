@@ -121,7 +121,7 @@ fi
 
 # Start aim UI inside of the repo root dir
 cd "$REPO_PATH"
-aim up --host 0.0.0.0 --port 5000
+aim up --host 0.0.0.0 --port 5000 &
 
 # Go back to root dir to ensure consistency for running CMD
 cd "/"
