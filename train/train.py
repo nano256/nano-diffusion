@@ -76,8 +76,11 @@ def train(cfg):
     )
     print(f"Using device: {device}")
 
-    # Without this dataloaders with several workers throw an error.
-    torch.multiprocessing.set_start_method("spawn")
+    try:
+        # Without this dataloaders with several workers throw an error.
+        torch.multiprocessing.set_start_method("spawn")
+    except RuntimeError:
+        pass  # Already set by parent process (e.g. joblib sweep)
 
     data_path = "./data/cifar10_latents"
     if cfg.data.augment is True:
