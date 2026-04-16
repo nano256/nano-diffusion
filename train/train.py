@@ -1,7 +1,7 @@
 """Training script for Nano-Diffusion models.
 
 This script handles the complete training pipeline:
-1. Loads pre-encoded CIFAR-10 latents
+1. Loads pre-encoded CIFAR-10 data
 2. Initializes model, optimizer, and noise scheduler
 3. Sets up aim experiment tracking
 4. Runs training via NanoDiffusionTrainer
@@ -34,29 +34,27 @@ from diffusion.trainer import NanoDiffusionTrainer
 from diffusion.utils import get_available_device, get_kwargs, slugify
 
 
-def load_cifar10_latents(data_path):
+def load_dataset(data_path):
     data_path = Path(data_path)
     if not data_path.exists():
         raise FileNotFoundError(
-            f"CIFAR-10 latents not found at {data_path}. "
+            f"CIFAR-10 data not found at {data_path}. "
             f"Run 'python preprocessing/encode_cifar10.py' first."
         )
 
     data = torch.load(data_path, map_location="cpu")
 
-    train_latents = torch.stack(data["train"]["latents"])
+    train_data = torch.stack(data["train"]["data"])
     train_labels = torch.stack(data["train"]["labels"])
-    test_latents = torch.stack(data["test"]["latents"])
+    test_data = torch.stack(data["test"]["data"])
     test_labels = torch.stack(data["test"]["labels"])
 
-    return train_latents, train_labels, test_latents, test_labels
+    return train_data, train_labels, test_data, test_labels
 
 
-def create_dataloaders(
-    train_latents, train_labels, test_latents, test_labels, batch_size=32
-):
-    train_dataset = TensorDataset(train_latents, train_labels)
-    test_dataset = TensorDataset(test_latents, test_labels)
+def create_dataloaders(train_data, train_labels, test_data, test_labels, batch_size=32):
+    train_dataset = TensorDataset(train_data, train_labels)
+    test_dataset = TensorDataset(test_data, test_labels)
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
@@ -82,31 +80,27 @@ def train(cfg):
     except RuntimeError:
         pass  # Already set by parent process (e.g. joblib sweep)
 
-    data_path = "./data/cifar10_latents"
+    data_path = f"./data/{cfg.dataset}"
     if cfg.data.augment is True:
         data_path += "_augmented"
     if cfg.debug is True:
         data_path += "_debug"
-    data_path += "/cifar10_latents.pt"
+    data_path += "/data.pt"
 
-    train_latents, train_labels, test_latents, test_labels = load_cifar10_latents(
-        data_path
-    )
-    print(
-        f"Loaded {len(train_latents)} training samples, {len(test_latents)} test samples"
-    )
-    print(f"Latent shape: {train_latents[0].shape}")
+    train_data, train_labels, test_data, test_labels = load_dataset(data_path)
+    print(f"Loaded {len(train_data)} training samples, {len(test_data)} test samples")
+    print(f"Latent shape: {train_data[0].shape}")
 
     # Move data to device
-    train_latents = train_latents.to(device)
+    train_data = train_data.to(device)
     train_labels = train_labels.to(device)
-    test_latents = test_latents.to(device)
+    test_data = test_data.to(device)
     test_labels = test_labels.to(device)
 
     train_loader, val_loader = create_dataloaders(
-        train_latents,
+        train_data,
         train_labels,
-        test_latents,
+        test_data,
         test_labels,
         batch_size=cfg.batch_size,
     )

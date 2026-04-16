@@ -5,8 +5,8 @@ representations, which are used for training the latent diffusion model.
 This significantly speeds up training compared to pixel-space diffusion.
 
 Usage:
-    python preprocessing/encode_cifar10.py          # Full dataset
-    python preprocessing/encode_cifar10.py --debug  # Small subset for testing
+    python preprocessing/encode_cifar10.py             # Full dataset
+    python preprocessing/encode_cifar10.py debug=True  # Small subset for testing
 
 Output:
     - data/cifar10_latents/cifar10_latents.pt (full dataset)
@@ -14,8 +14,8 @@ Output:
 
 The output file contains:
     {
-        'train': {'latents': Tensor, 'labels': Tensor},
-        'test': {'latents': Tensor, 'labels': Tensor}
+        'train': {'data': Tensor, 'labels': Tensor},
+        'test': {'data': Tensor, 'labels': Tensor}
     }
 """
 
@@ -113,13 +113,13 @@ def encode_and_save_cifar10_latents(cfg):
 
     data = {
         "train": {
-            "latents": train_latents,
+            "data": train_latents,
             "labels": train_labels,
         },
-        "test": {"latents": test_latents, "labels": test_labels},
+        "test": {"data": test_latents, "labels": test_labels},
     }
 
-    torch.save(data, output_dir / "cifar10_latents.pt")
+    torch.save(data, output_dir / "data.pt")
     print("CIFAR10 preprocessing completed!")
 
 

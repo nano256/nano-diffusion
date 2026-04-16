@@ -3,8 +3,8 @@
 This preprocessing step normalizes CIFAR-10 images.
 
 Usage:
-    python preprocessing/normalize_cifar10.py          # Full dataset
-    python preprocessing/normalize_cifar10.py --debug  # Small subset for testing
+    python preprocessing/normalize_cifar10.py             # Full dataset
+    python preprocessing/normalize_cifar10.py debug=True  # Small subset for testing
 
 Output:
     - data/cifar10_normalized/cifar10_normalized.pt (full dataset)
@@ -12,8 +12,8 @@ Output:
 
 The output file contains:
     {
-        'train': {'images': Tensor, 'labels': Tensor},
-        'test': {'images': Tensor, 'labels': Tensor}
+        'train': {'data': Tensor, 'labels': Tensor},
+        'test': {'data': Tensor, 'labels': Tensor}
     }
 """
 
@@ -115,13 +115,13 @@ def normalize_and_save_cifar10(cfg):
 
     data = {
         "train": {
-            "images": train_images,
+            "data": train_images,
             "labels": train_labels,
         },
-        "test": {"images": test_images, "labels": test_labels},
+        "test": {"data": test_images, "labels": test_labels},
     }
 
-    torch.save(data, output_dir / "cifar10.pt")
+    torch.save(data, output_dir / "data.pt")
     print("CIFAR10 preprocessing completed!")
 
 
