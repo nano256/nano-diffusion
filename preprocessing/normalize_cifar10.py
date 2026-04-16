@@ -59,9 +59,8 @@ def normalize_and_save_cifar10(cfg):
     transform = transforms.Compose(
         [
             transforms.ToTensor(),
-            TensorDtypeConvertor(dtype),
             TensorCifarNormalizer(),
-            lambda x: x.to(dtype=dtype),
+            TensorDtypeConvertor(dtype),
         ]
     )
 
@@ -98,6 +97,9 @@ def normalize_and_save_cifar10(cfg):
             train_images.append(images.flip(-1))
             train_labels.append(labels)
 
+    train_images = torch.cat(train_images)
+    train_labels = torch.cat(train_labels)
+
     test_images = []
     test_labels = []
     print("Transform test dataset...")
@@ -107,6 +109,9 @@ def normalize_and_save_cifar10(cfg):
         if cfg.data.augment is True:
             test_images.append(images.flip(-1))
             test_labels.append(labels)
+
+    test_images = torch.cat(test_images)
+    test_labels = torch.cat(test_labels)
 
     data = {
         "train": {
