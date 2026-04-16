@@ -13,6 +13,9 @@
 # Name of the experiment (used for organizing runs)
 experiment_name: "cifar10"
 
+# Dataset used for training
+dataset: "cifar10_latents"
+
 # Number of training epochs
 epochs: 1000
 
